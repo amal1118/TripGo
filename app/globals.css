@@ -1,0 +1,172 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* الوضع الفاتح: أبيض سكري + برتقالي ناعم مطفي */
+    --background: 30 45% 98%;
+    --foreground: 20 25% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 20 25% 12%;
+    --popover: 30 45% 99%;
+    --popover-foreground: 20 25% 12%;
+    --primary: 24 70% 62%;
+    --primary-foreground: 24 60% 99%;
+    --secondary: 28 40% 94%;
+    --secondary-foreground: 20 30% 20%;
+    --muted: 28 30% 94%;
+    --muted-foreground: 22 12% 42%;
+    --accent: 26 50% 90%;
+    --accent-foreground: 20 30% 20%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 26 30% 88%;
+    --input: 26 30% 88%;
+    --ring: 24 70% 62%;
+    --radius: 1rem;
+
+    /* رموز الزجاج */
+    --glass-bg: 0 0% 100%;
+    --glass-bg-alpha: 0.55;
+    --glass-border: 0 0% 100%;
+    --glass-border-alpha: 0.6;
+
+    /* الخطوط تُحقن من next/font في app/layout.tsx */
+    --font-sans: var(--font-ar), var(--font-latin), system-ui, sans-serif;
+    --font-display: var(--font-serif), Georgia, serif;
+
+    /* سطح دافئ للأقسام الفاتحة — مأخوذ من مرجع التصميم */
+    --canvas: 28 40% 96%;
+  }
+
+  .dark {
+    /* الوضع الداكن: أسود + برتقالي ناعم مطفي */
+    --background: 24 8% 5%;
+    --foreground: 28 20% 94%;
+    --card: 24 8% 8%;
+    --card-foreground: 28 20% 94%;
+    --popover: 24 8% 7%;
+    --popover-foreground: 28 20% 94%;
+    --primary: 24 66% 60%;
+    --primary-foreground: 20 30% 8%;
+    --secondary: 24 7% 14%;
+    --secondary-foreground: 28 20% 94%;
+    --muted: 24 7% 13%;
+    --muted-foreground: 26 10% 62%;
+    --accent: 24 25% 18%;
+    --accent-foreground: 28 25% 92%;
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 24 8% 18%;
+    --input: 24 8% 18%;
+    --ring: 24 66% 60%;
+
+    --glass-bg: 24 8% 10%;
+    --glass-bg-alpha: 0.5;
+    --glass-border: 28 30% 80%;
+    --glass-border-alpha: 0.12;
+    --canvas: 24 8% 7%;
+  }
+
+  * { @apply border-border; }
+  html { scroll-behavior: smooth; }
+  body {
+    @apply bg-background text-foreground antialiased;
+    overflow-x: hidden;
+    font-family: var(--font-sans);
+    font-feature-settings: 'ss01', 'cv01';
+  }
+  ::selection { background: hsl(var(--primary) / 0.25); }
+}
+
+@layer base {
+  /* ===== سلّم نصي موحّد =====
+     كل عنوان في التطبيق يستخدم أحد هذه الأصناف فقط، فتبقى الأحجام
+     متناسقة بين الصفحات بدل تكرار قيم clamp عشوائية في كل مكون. */
+  .t-display {
+    font-family: var(--font-display);
+    font-size: clamp(2.75rem, 6vw, 5.25rem);
+    line-height: 1.04;
+    letter-spacing: -0.02em;
+    font-weight: 400;
+  }
+  .t-h1 { font-size: clamp(1.75rem, 3.4vw, 2.75rem); line-height: 1.25; font-weight: 600; letter-spacing: -0.01em; }
+  .t-h2 { font-size: clamp(1.375rem, 2.4vw, 1.875rem); line-height: 1.35; font-weight: 600; }
+  .t-h3 { font-size: clamp(1.0625rem, 1.4vw, 1.25rem); line-height: 1.4; font-weight: 600; }
+  .t-body { font-size: 0.9375rem; line-height: 1.75; }
+  .t-sm { font-size: 0.8125rem; line-height: 1.6; }
+  .t-eyebrow {
+    font-size: 0.6875rem;
+    line-height: 1;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+  /* الأرقام والنصوص اللاتينية داخل واجهة عربية */
+  .num { font-family: var(--font-latin), ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+}
+
+@layer components {
+  /* === Glassmorphism core === */
+  .glass {
+    background: hsl(var(--glass-bg) / var(--glass-bg-alpha));
+    border: 1px solid hsl(var(--glass-border) / var(--glass-border-alpha));
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    backdrop-filter: blur(20px) saturate(160%);
+    @apply shadow-glass dark:shadow-glass-dark;
+  }
+  .glass-strong {
+    background: hsl(var(--glass-bg) / calc(var(--glass-bg-alpha) + 0.25));
+    -webkit-backdrop-filter: blur(34px) saturate(180%);
+    backdrop-filter: blur(34px) saturate(180%);
+    border: 1px solid hsl(var(--glass-border) / calc(var(--glass-border-alpha) + 0.1));
+  }
+  .glass-subtle {
+    background: hsl(var(--glass-bg) / calc(var(--glass-bg-alpha) - 0.3));
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    border: 1px solid hsl(var(--glass-border) / calc(var(--glass-border-alpha) - 0.25));
+  }
+  /* حافة ضوئية علوية تعطي إحساس الزجاج الحقيقي */
+  .glass-sheen::before {
+    content: '';
+    @apply pointer-events-none absolute inset-x-0 top-0 h-px;
+    background: linear-gradient(90deg, transparent, hsl(0 0% 100% / 0.7), transparent);
+  }
+  .dark .glass-sheen::before {
+    background: linear-gradient(90deg, transparent, hsl(24 70% 70% / 0.35), transparent);
+  }
+  .aurora {
+    background:
+      radial-gradient(60% 55% at 15% 12%, hsl(24 80% 66% / 0.30), transparent 60%),
+      radial-gradient(50% 50% at 85% 20%, hsl(16 75% 60% / 0.22), transparent 62%),
+      radial-gradient(70% 60% at 50% 100%, hsl(32 70% 70% / 0.25), transparent 65%);
+  }
+  .text-balance { text-wrap: balance; }
+
+  /* لوح دافئ يفصل الأقسام الفاتحة عن الهيرو الداكن */
+  .canvas { background-color: hsl(var(--canvas)); }
+
+  /* بطاقة بيضاء ناعمة — أسلوب مرجع التصميم للأقسام الفاتحة */
+  .card-warm {
+    @apply rounded-3xl border border-sand-900/5 bg-card;
+    box-shadow: 0 2px 12px -2px hsl(22 40% 25% / 0.06);
+  }
+  .card-warm-hover { @apply transition-all duration-500 hover:-translate-y-1; }
+  .card-warm-hover:hover { box-shadow: 0 18px 40px -12px hsl(22 45% 25% / 0.16); }
+
+  /* تدرّج قراءة فوق الصور */
+  .img-scrim { background: linear-gradient(to top, hsl(20 25% 6% / 0.85), hsl(20 25% 6% / 0.15) 45%, transparent 70%); }
+}
+
+@layer utilities {
+  .scrollbar-none { scrollbar-width: none; -ms-overflow-style: none; }
+  .scrollbar-none::-webkit-scrollbar { display: none; }
+  .mask-fade-b { mask-image: linear-gradient(to bottom, #000 70%, transparent 100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
