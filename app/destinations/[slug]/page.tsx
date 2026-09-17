@@ -10,6 +10,8 @@ import {
   DESTINATIONS, EXPLORE_CATEGORIES, getDestination, getRelated, planUrl, unsplash,
 } from '@/lib/destinations';
 import { DestinationCard } from '@/components/destinations/DestinationCard';
+import { StickyPlanBar } from '@/components/destinations/StickyPlanBar';
+import { ScreenLogo } from '@/components/shell/ScreenLogo';
 import { mapsUrl } from '@/lib/images';
 import { formatPrice } from '@/lib/utils';
 
@@ -70,6 +72,8 @@ export default function DestinationPage({ params }: Props) {
           className="object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-neutral-950/55 to-neutral-950/25" />
+
+        <ScreenLogo className="absolute inset-x-0 top-[max(1rem,env(safe-area-inset-top))] z-10" />
 
         <div className="relative z-10 mx-auto flex h-full w-full max-w-[1500px] flex-col justify-between px-5 pb-10 pt-8 sm:px-8 lg:px-14">
           <Link
@@ -240,6 +244,7 @@ export default function DestinationPage({ params }: Props) {
               </p>
 
               <Link
+                id="plan-cta"
                 href={planUrl(d)}
                 className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 text-sm font-semibold text-primary-foreground shadow-glow transition-all hover:-translate-y-0.5 hover:brightness-110"
               >
@@ -281,6 +286,12 @@ export default function DestinationPage({ params }: Props) {
           </section>
         )}
       </div>
+
+      <StickyPlanBar
+        href={planUrl(d)}
+        name={d.name}
+        price={formatPrice(d.priceFrom, d.currency)}
+      />
     </main>
   );
 }

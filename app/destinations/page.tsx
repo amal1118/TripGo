@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import { DESTINATIONS } from '@/lib/destinations';
 import { DestinationsExplorer } from '@/components/destinations/DestinationsExplorer';
+import { ScreenLogo } from '@/components/shell/ScreenLogo';
 
 export const metadata: Metadata = {
   title: 'الوجهات المقترحة',
@@ -19,6 +20,7 @@ export default function DestinationsPage() {
       <div className="mx-auto w-full max-w-[1500px] px-5 pb-36 pt-8 sm:px-8 sm:pt-12 lg:px-14">
         {/* ---------- الترويسة ---------- */}
         <header className="mb-9">
+          <ScreenLogo className="mb-6" />
           <Link
             href="/"
             className="mb-6 inline-flex items-center gap-1.5 text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground"

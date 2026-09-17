@@ -6,6 +6,15 @@ import { getCardImage, getFallbackImage } from '@/lib/images';
 import type { CardCategory } from '@/types/trip';
 import { cn } from '@/lib/utils';
 
+/**
+ * وجهة الرحلة الحالية — تُوفَّر مرة واحدة من ItineraryView.
+ *
+ * لماذا سياق بدل تمرير الخاصية؟ البطاقات تُستدعى من ست قوائم مختلفة عبر
+ * مستويين، وتمرير الوجهة يدوياً في كل واحدة تكرار خالص. والسياق ثابت طوال
+ * عمر الشاشة فلا يُسبب إعادة رسم.
+ */
+export const TripDestinationContext = React.createContext<string | null>(null);
+
 interface CardImageProps {
   category: CardCategory;
   query: string;
@@ -13,15 +22,20 @@ interface CardImageProps {
   className?: string;
   priority?: boolean;
   sizes?: string;
+  /** ترتيب البطاقة داخل فئتها — يمنع ظهور الصورة نفسها في بطاقتين متجاورتين. */
+  seed?: number;
 }
 
 /**
  * صورة بطاقة مع تدرّج سفلي لقراءة النص، وتبديل تلقائي لمصدر بديل عند الفشل.
  * memo لأن البطاقات تُعاد ترتيبها كثيراً عند التصفية.
  */
-function CardImageBase({ category, query, alt, className, priority, sizes = '(max-width: 768px) 100vw, 380px' }: CardImageProps) {
+function CardImageBase({ category, query, alt, className, priority, sizes = '(max-width: 768px) 100vw, 380px', seed = 0 }: CardImageProps) {
   const [failed, setFailed] = React.useState(false);
-  const src = failed ? getFallbackImage(query) : getCardImage(category, query);
+  const destination = React.useContext(TripDestinationContext);
+  const src = failed
+    ? getFallbackImage(query)
+    : getCardImage(category, query, { seed, destination });
 
   return (
     <div className={cn('relative overflow-hidden bg-muted', className)}>
