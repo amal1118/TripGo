@@ -2,7 +2,8 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { Search, X, Menu, Compass } from 'lucide-react';
+import Image from 'next/image';
+import { Search, X, Menu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const LINKS = [
@@ -28,14 +29,18 @@ export const LandingNav = React.memo(function LandingNav() {
         <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-6">
           {/* الشعار */}
           <Link href="/" className="flex items-center gap-3">
-            <span className="grid size-10 place-items-center rounded-full border border-white/25 bg-white/10 text-sand-300 backdrop-blur-md">
-              <Compass className="size-5" />
+            <span className="block h-8 w-auto overflow-hidden rounded-lg shadow-md sm:h-9 md:h-10">
+              <Image
+                src="/logo-wordmark.png"
+                alt="TripGo"
+                width={975}
+                height={415}
+                priority
+                className="h-full w-auto object-contain"
+              />
             </span>
-            <span className="flex items-baseline gap-2">
-              <span className="font-display text-2xl font-semibold tracking-tight text-white">TripGo</span>
-              <span className="hidden rounded border border-sand-400/40 bg-sand-500/10 px-1.5 py-0.5 text-[10px] font-medium tracking-[0.16em] text-sand-300 sm:inline">
-                LUXURY
-              </span>
+            <span className="hidden rounded border border-sand-400/40 bg-sand-500/10 px-1.5 py-0.5 text-[10px] font-medium tracking-[0.16em] text-sand-300 sm:inline">
+              LUXURY
             </span>
           </Link>
 
@@ -94,7 +99,15 @@ export const LandingNav = React.memo(function LandingNav() {
       >
         <div className={cn('flex h-full flex-col transition-transform duration-500', open ? 'translate-y-0' : '-translate-y-8')}>
           <div className="flex items-center justify-between px-6 pt-6 sm:px-8">
-            <span className="font-display text-2xl font-semibold text-white">TripGo</span>
+            <span className="block h-8 w-auto overflow-hidden rounded-lg shadow-md">
+              <Image
+                src="/logo-wordmark.png"
+                alt="TripGo"
+                width={975}
+                height={415}
+                className="h-full w-auto object-contain"
+              />
+            </span>
             <button
               type="button"
               onClick={() => setOpen(false)}

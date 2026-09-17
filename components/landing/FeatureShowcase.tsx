@@ -32,7 +32,7 @@ export function FeatureShowcase() {
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {CATEGORIES.map(({ icon: Icon, title, body }) => (
             <article key={title} className="card-warm card-warm-hover p-6">
-              <div className="mb-5 grid size-12 place-items-center rounded-2xl bg-primary/12">
+              <div className="mb-5 grid size-12 place-items-center rounded-2xl bg-primary/10">
                 <Icon className="size-5 text-primary" />
               </div>
               <h3 className="t-h3 mb-2">{title}</h3>

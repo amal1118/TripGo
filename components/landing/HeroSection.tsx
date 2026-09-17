@@ -8,40 +8,30 @@
  * والفيديو يتوقف خارج الشاشة ولا يُحمَّل عند تفضيل تقليل الحركة.
  *
  * البطاقات: مروحة ثلاثية الأبعاد (coverflow) فوق حاوية تمرير أصلية، فتعمل
- * باللمس والسحب بالفأرة ولوحة المفاتيح، مع شرائح تصفية حسب المنطقة.
+ * باللمس والسحب بالفأرة ولوحة المفاتيح. البطاقة الوسطى هي البطل: أكبر حجماً
+ * وفي المقدمة، وما حولها يصغر ويغوص خلفها. كل المقادير نسبة من عرض بطاقة
+ * مرن (clamp) فتتدرّج من الجوال إلى الشاشة الكبيرة.
+ *
+ * لا شرائح تصفية ولا مُرقِّم: المشهد الافتتاحي يعرض الوجهات ولا يُدير
+ * تصفّحها — السحب واللمس وعجلة التمرير تكفي، والتصفية مكانها /destinations.
+ *
+ * العتمة: لا ظلّ خاصاً بكل بطاقة (كانت حوافه تُرى كبقعة فوق الغيوم)، بل
+ * هالة واحدة واسعة تسبح خلف المروحة وتذوب في تدرّجات القسم نفسه.
  */
 
 import * as React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ChevronLeft, ChevronRight, Bookmark, ArrowLeft, Sparkles, Star } from 'lucide-react';
-import { HERO_DESTINATIONS, HERO_REGIONS, FEATURED_INDEX, unsplash, type Destination } from '@/lib/destinations';
+import { Bookmark, ArrowLeft, Sparkles, Star } from 'lucide-react';
+import { HERO_DESTINATIONS, FEATURED_INDEX, unsplash, type Destination } from '@/lib/destinations';
 import { HERO_VIDEO, HERO_VIDEO_FILTER } from '@/lib/media';
 import { useDragScroll } from '@/lib/hooks/useDragScroll';
 import { useCoverflow } from '@/lib/hooks/useCoverflow';
 import { cn } from '@/lib/utils';
 
 export function HeroSection() {
-  const [region, setRegion] = React.useState('الكل');
-  const { ref: track, dragging, index, scrollToIndex } = useDragScroll<HTMLDivElement>();
-  const { repaint } = useCoverflow(track);
-
-  const destinations = React.useMemo(
-    () => (region === 'الكل' ? HERO_DESTINATIONS : HERO_DESTINATIONS.filter((d) => d.region === region)),
-    [region],
-  );
-
-  /** تغيير التصفية يُعيد الصف لبدايته ويُعيد حساب المروحة. */
-  const pickRegion = React.useCallback(
-    (r: string) => {
-      setRegion(r);
-      requestAnimationFrame(() => {
-        track.current?.scrollTo({ left: 0, behavior: 'smooth' });
-        repaint();
-      });
-    },
-    [track, repaint],
-  );
+  const { ref: track, dragging, scrollToIndex } = useDragScroll<HTMLDivElement>();
+  useCoverflow(track);
 
   /**
    * فتح الصفحة على الوجهة المميّزة فتتوزّع البطاقات على جانبيها.
@@ -75,21 +65,25 @@ export function HeroSection() {
     };
   }, [scrollToIndex, track]);
 
-  const active = Math.min(index, destinations.length - 1);
-
-  /**
-   * الانتقال بفهرس محدد لا بإزاحة نسبية: مع scroll-snap الإلزامي تهبط
-   * الإزاحة النسبية أحياناً بين نقطتي التقاط فيصحّحها المتصفح لنقطة
-   * مجاورة، فلا يعود الضغط على "السابق" إلى الموضع نفسه بالضبط.
-   */
-  const step = React.useCallback(
-    (dir: 1 | -1) => scrollToIndex(Math.min(destinations.length - 1, Math.max(0, active + dir))),
-    [active, destinations.length, scrollToIndex],
-  );
-
   return (
     <section className="relative flex min-h-[100svh] w-full flex-col overflow-hidden bg-neutral-950 text-white">
       <HeroBackdrop />
+
+      {/* الشعار — ثابت أعلى المشهد، حجمه يتدرّج من الجوال إلى سطح المكتب */}
+      <Link
+        href="/"
+        aria-label="TripGo"
+        className="absolute start-5 top-[max(1.25rem,env(safe-area-inset-top))] z-20 block h-7 w-auto overflow-hidden rounded-lg shadow-md sm:start-8 sm:h-8 lg:start-14 lg:h-9"
+      >
+        <Image
+          src="/logo-wordmark.png"
+          alt="TripGo"
+          width={975}
+          height={415}
+          priority
+          className="h-full w-auto object-contain"
+        />
+      </Link>
 
       <div className="relative z-10 mx-auto flex w-full max-w-[1500px] flex-1 flex-col justify-end px-5 pb-32 pt-12 sm:px-8 sm:pb-28 sm:pt-16 lg:justify-center lg:px-14 lg:pb-24 lg:pt-24">
         <div className="grid items-center gap-5 sm:gap-7 lg:grid-cols-12 lg:gap-10">
@@ -107,7 +101,7 @@ export function HeroSection() {
             </h1>
 
             <p className="mt-3 max-w-md font-bold leading-snug text-white/95 t-h2 max-sm:text-[1.15rem] sm:mt-4">
-              اكتشف عجائب العالم بخطة مصمّمة لك وحدك
+              اكتشف عجائب العالم بخطة مصممة لك وحدك
             </p>
 
             <p className="mt-3 hidden max-w-lg text-white/70 t-body sm:block">
@@ -132,58 +126,48 @@ export function HeroSection() {
           </div>
 
           {/* ---------- المروحة ---------- */}
-          <div className="min-w-0 lg:col-span-7">
-            {/* شرائح التصفية */}
-            <div className="scrollbar-none -mx-5 mb-4 flex gap-2 overflow-x-auto px-5 sm:-mx-8 sm:px-8 lg:mx-0 lg:justify-center lg:px-0">
-              {HERO_REGIONS.map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  onClick={() => pickRegion(r)}
-                  aria-pressed={region === r}
-                  className={cn(
-                    'shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-[13px] font-medium transition-all active:scale-95',
-                    region === r
-                      ? 'bg-white text-neutral-900 shadow-card'
-                      : 'border border-white/20 bg-white/10 text-white/80 backdrop-blur-md hover:bg-white/20',
-                  )}
-                >
-                  {r}
-                </button>
-              ))}
-            </div>
+          <div className="relative min-w-0 lg:col-span-7">
+            {/* الهالة: عتمة واحدة تحلّ محلّ ظلّ كل بطاقة على حدة.
 
-            {/* الصف: perspective على الحاوية حتى يظهر الميلان مجسّماً */}
+                ظلّ البطاقة كان يُقرأ بقعةً لها حدّ فوق الغيوم الساطعة. هذه
+                الهالة أوسع من المروحة بمرّة ونصف وتنتهي شفافة تماماً، فلا
+                حافة لها، وتندمج مع تدرّجات القسم فتبدو جزءاً من المشهد. */}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-[150%] w-[155%] -translate-x-1/2 -translate-y-1/2 blur-2xl"
+              style={{
+                background:
+                  'radial-gradient(closest-side, hsl(20 30% 4% / 0.62), hsl(20 30% 4% / 0.3) 52%, transparent 78%)',
+              }}
+            />
+
+            {/* الصف: perspective على الحاوية حتى يظهر الميلان مجسّماً.
+
+                المقاس كلّه معلّق على متغيّرين: --card-w مرن بـ clamp، و--card-h
+                مشتقّ منه بنسبة ثابتة. الحشوة الجانبية والمروحة (useCoverflow)
+                تقرآن العرض نفسه، فيبقى التوسيط والتراكب صحيحين عند أي شاشة.
+
+                لماذا نُضيف عرض الهامش السالب إلى الحشوة؟ لأن نسبة الحشوة
+                تُحسب من عرض الأب بينما التوسيط يجري إلى منتصف الصف نفسه
+                (الأب + الهامشين)، فبدونها تقف البطاقة الأولى منزاحة قليلاً. */}
             <div
               ref={track}
               className={cn(
-                'scrollbar-none -mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-[calc(50%-114px)] py-3 [perspective:1400px] sm:-mx-8 sm:px-[calc(50%-134px)]',
+                'scrollbar-none -mx-5 flex snap-x snap-mandatory overflow-x-auto sm:-mx-8',
+                '[--card-w:clamp(198px,57vw,248px)] sm:[--card-w:clamp(248px,33vw,288px)] lg:[--card-w:clamp(252px,19vw,300px)]',
+                '[--card-h:calc(var(--card-w)_*_1.45)] sm:[--card-h:calc(var(--card-w)_*_1.52)]',
+                'gap-[clamp(10px,2.2vw,18px)] py-4 sm:py-7',
+                'px-[calc(50%_+_1.25rem_-_var(--card-w)_/_2)] sm:px-[calc(50%_+_2rem_-_var(--card-w)_/_2)]',
+                '[perspective:1400px] [perspective-origin:50%_46%]',
+                // تلاشٍ عند الطرفين بدل القصّ الحادّ لحافة الحاوية
+                '[-webkit-mask-image:linear-gradient(to_right,transparent,#000_7%,#000_93%,transparent)]',
+                '[mask-image:linear-gradient(to_right,transparent,#000_7%,#000_93%,transparent)]',
                 dragging ? 'cursor-grabbing select-none [scroll-snap-type:none]' : 'lg:cursor-grab',
               )}
             >
-              {destinations.map((d) => (
+              {HERO_DESTINATIONS.map((d) => (
                 <HeroCard key={d.id} destination={d} />
               ))}
-            </div>
-
-            {/* أدوات التحكم — داخل كبسولة داكنة لأنها قد تقع فوق غيوم
-                ساطعة أو فوق منطقة التلاشي نحو لون الصفحة الفاتح. */}
-            <div className="mt-3 flex justify-center">
-              <div className="flex items-center gap-4 rounded-full bg-neutral-900/50 px-3 py-1.5 backdrop-blur-md">
-                <NavButton label="السابق" onClick={() => step(-1)}>
-                  <ChevronRight className="size-[18px]" />
-                </NavButton>
-
-                <span className="num text-[12px] tracking-[0.2em] text-white/75" dir="ltr">
-                  <span className="font-bold text-white">{String(active + 1).padStart(2, '0')}</span>
-                  <span className="mx-1.5 text-white/40">/</span>
-                  <span>{String(destinations.length).padStart(2, '0')}</span>
-                </span>
-
-                <NavButton label="التالي" onClick={() => step(1)}>
-                  <ChevronLeft className="size-[18px]" />
-                </NavButton>
-              </div>
             </div>
           </div>
         </div>
@@ -213,7 +197,7 @@ const HeroBackdrop = React.memo(function HeroBackdrop() {
     const v = videoRef.current;
     if (!v || reduced) return;
     const io = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) void v.play().catch(() => {}); else v.pause(); },
+      ([entry]) => { if (entry.isIntersecting) void v.play().catch(() => { }); else v.pause(); },
       { threshold: 0.05 },
     );
     io.observe(v);
@@ -253,7 +237,7 @@ const HeroBackdrop = React.memo(function HeroBackdrop() {
       )}
 
       {/* الغيوم ساطعة، فالحجب هنا أثقل مما كان مع المشاهد الداكنة */}
-      <div className="absolute inset-0 bg-gradient-to-t from-neutral-950/96 via-neutral-950/80 to-neutral-950/55 lg:bg-gradient-to-l lg:from-neutral-950/95 lg:via-neutral-950/72 lg:to-neutral-950/38" />
+      <div className="absolute inset-0 bg-gradient-to-t from-neutral-950/95 via-neutral-950/80 to-neutral-950/55 lg:bg-gradient-to-l lg:from-neutral-950/95 lg:via-neutral-950/70 lg:to-neutral-950/40" />
       <div
         aria-hidden
         className="absolute inset-0 mix-blend-soft-light"
@@ -273,14 +257,16 @@ const HeroCard = React.memo(function HeroCard({ destination: d }: { destination:
        scroll-snap. الطبقة الداخلية هي التي تميل وتصغر (انظر useCoverflow). */
     <article
       data-active="false"
-      className="h-[318px] w-[228px] shrink-0 snap-center sm:h-[420px] sm:w-[268px]"
+      className="group/card h-[var(--card-h)] w-[var(--card-w)] shrink-0 snap-center"
     >
-      <div className="group relative size-full overflow-hidden rounded-[30px] border border-white/15 shadow-float will-change-transform [backface-visibility:hidden] [transform-style:preserve-3d]">
+      {/* لا ظلّ خارجياً هنا: العتمة كلّها في هالة القسم. البطاقة الوسطى
+          تتميّز بحدّ أوضح فقط، والباقي يتكفّل به الحجم والعمق والضبابية. */}
+      <div className="group relative size-full overflow-hidden rounded-[26px] border border-white/15 transition-colors duration-500 will-change-transform [backface-visibility:hidden] [transform-style:preserve-3d] group-data-[active=true]/card:border-white/35 sm:rounded-[30px]">
         <Image
           src={unsplash(d.image, 560, 880)}
           alt={d.name}
           fill
-          sizes="(max-width: 640px) 228px, 268px"
+          sizes="(max-width: 640px) 57vw, (max-width: 1024px) 33vw, 300px"
           draggable={false}
           className="pointer-events-none object-cover"
         />
@@ -289,7 +275,7 @@ const HeroCard = React.memo(function HeroCard({ destination: d }: { destination:
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-neutral-950 via-neutral-950/55 to-neutral-950/10" />
 
         {d.featured && (
-          <span className="absolute start-4 top-4 z-10 inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-[11px] font-semibold text-primary-foreground shadow-card">
+          <span className="absolute start-3.5 top-3.5 z-10 inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-primary px-2.5 py-1.5 text-[10.5px] font-semibold text-primary-foreground shadow-card sm:start-4 sm:top-4 sm:px-3 sm:text-[11px]">
             <Star className="size-3 fill-current" />
             الوجهة الأكثر تفضيلاً
           </span>
@@ -330,16 +316,3 @@ const HeroCard = React.memo(function HeroCard({ destination: d }: { destination:
     </article>
   );
 });
-
-function NavButton({ label, onClick, children }: { label: string; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={label}
-      className="grid size-10 place-items-center rounded-full border border-white/25 bg-white/10 text-white backdrop-blur-md transition-colors hover:bg-white/30 active:scale-95"
-    >
-      {children}
-    </button>
-  );
-}

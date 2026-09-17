@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import { ScreenLogo } from './ScreenLogo';
 
 /**
  * AppScreen — الغلاف المشترك لصفحات التطبيق (لا صفحة الهبوط).
@@ -27,6 +28,7 @@ export function AppScreen({
           className,
         )}
       >
+        <ScreenLogo className="mb-5" />
         {children}
       </div>
     </div>

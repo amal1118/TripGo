@@ -3,7 +3,10 @@
 /**
  * BottomNav — شريط التنقل السفلي العائم (يحلّ محل الشريط العلوي والتذييل).
  *
- * التصميم: كبسولة داكنة عائمة، العنصر النشط دائرة برتقالية.
+ * التصميم: كبسولة داكنة عائمة، العنصر النشط كبسولة برتقالية مصمتة.
+ * الأيقونات غير النشطة برتقالية أيضاً لا بيضاء باهتة: الشريط يعبر خلفيات
+ * متباينة أثناء التمرير (هيرو داكن ← لوح فاتح)، والأبيض الشفاف كان يذوب
+ * فيها. البرتقالي يحتفظ بتباينه فوق الكبسولة الداكنة في الوضعين.
  * الجوال: عرض شبه كامل مع احترام منطقة الأمان (safe-area).
  * سطح المكتب: نفس الكبسولة في المنتصف مع إظهار التسميات النصية.
  *
@@ -35,7 +38,7 @@ export function BottomNav() {
       aria-label="التنقل الرئيسي"
       className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
     >
-      <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-white/10 bg-neutral-900/92 p-1.5 shadow-float backdrop-blur-xl sm:gap-2 sm:p-2 dark:bg-neutral-900/95">
+      <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-white/10 bg-neutral-900/90 p-1.5 shadow-float backdrop-blur-xl sm:gap-2 sm:p-2 dark:bg-neutral-900/95">
         {ITEMS.map(({ href, label, icon: Icon, match }) => {
           const active = match(pathname);
           return (
@@ -47,12 +50,12 @@ export function BottomNav() {
                 'group relative flex items-center justify-center gap-2 rounded-full transition-all duration-300',
                 active
                   ? 'bg-primary text-primary-foreground shadow-glow'
-                  : 'text-white/55 hover:bg-white/10 hover:text-white',
+                  : 'text-primary hover:bg-primary/15',
                 // الجوال: أيقونة فقط. سطح المكتب: أيقونة + تسمية للعنصر النشط
                 active ? 'h-12 px-4 sm:px-5' : 'size-12',
               )}
             >
-              <Icon className="size-[20px] shrink-0" strokeWidth={active ? 2.2 : 1.9} />
+              <Icon className="size-[20px] shrink-0" strokeWidth={active ? 2.2 : 2} />
               {active && <span className="hidden text-[13px] font-semibold sm:inline">{label}</span>}
               <span className="sr-only">{label}</span>
             </Link>

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { OnboardingFlow } from '@/components/plan/OnboardingFlow';
+import { ScreenLogo } from '@/components/shell/ScreenLogo';
 
 export const metadata = { title: 'إعداد ملفك' };
 
@@ -17,6 +18,7 @@ export default async function OnboardingPage() {
     <main className="relative min-h-dvh px-6 py-12">
       <div aria-hidden className="aurora pointer-events-none fixed inset-0" />
       <div className="relative mx-auto max-w-2xl">
+        <ScreenLogo className="mb-7" />
         <OnboardingFlow name={profile?.full_name ?? user?.user_metadata?.full_name ?? null} />
       </div>
     </main>
