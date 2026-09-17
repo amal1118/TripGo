@@ -1,15 +1,12 @@
-## 👥 Project Information
-# 👥 Group
 # Group 5
 
 ## 👩‍💻 Team Members
 1. Shahad Khalid
 2. Amal Al-Zahrani
-3. Bashayer Al-Sheibani
-4. Asayil Al-qahtani
-5. Abdulaziz Al-Shahrani
-6. Raghad Al-Otaibi
-7. Raghad Al-Anazi
+3. Asayil Al-qahtani
+4. Abdulaziz Al-Shahrani
+5. Raghad Al-Otaibi
+6. Raghad Al-Anazi
    
 ## 🎓 Training Program
 Vibe Coding Training Program
