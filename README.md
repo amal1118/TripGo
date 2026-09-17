@@ -1,6 +1,6 @@
-👥 Project Information
-👥 Group
-Group 5
+## 👥 Project Information
+# 👥 Group
+# Group 5
 
 👩‍💻 Team Members
 Shahad Khalid
@@ -13,11 +13,12 @@ Raghad Al-Anazi
 🎓 Training Program
 Vibe Coding Training Program
 
-🏫 Organization
+#  Organization
 SDAIA Academy
 
-🔗 GitHub
+# 🔗 GitHub
 SDAIA Academy on GitHub
+https://github.com/SDAIAAcademy
 
 
 # TripGo — مخطط رحلات ذكي
