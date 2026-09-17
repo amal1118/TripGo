@@ -26,7 +26,7 @@ export function FeatureShowcase() {
       <section id="features" className="mx-auto max-w-[1500px] px-5 pb-16 sm:px-8 lg:px-14">
         <header className="mx-auto mb-12 max-w-2xl text-center">
           <p className="t-eyebrow mb-3 text-primary">ما الذي ستحصل عليه</p>
-          <h2 className="t-h1 text-balance">ست فئات تُغطي رحلتك من المطار إلى آخر يوم</h2>
+          <h2 className="t-h1 text-balance">كل ما تحتاجه لتجربة سفر ممتعة</h2>
         </header>
 
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">

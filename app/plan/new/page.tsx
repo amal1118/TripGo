@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { requireUser } from '@/lib/supabase/server';
 import { PlanBuilder } from '@/components/plan/PlanBuilder';
 import { AppScreen } from '@/components/shell/AppScreen';
 import type { TripPreferences } from '@/types/trip';
@@ -7,13 +7,12 @@ export const metadata = { title: 'خطة جديدة' };
 
 /** Server Component: يقرأ التفضيلات الافتراضية فيبدأ المعالج مملوءاً. */
 export default async function NewPlanPage({ searchParams }: { searchParams: { q?: string; destination?: string } }) {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { supabase, user } = await requireUser('/plan/new');
 
   const { data: profile } = await supabase
     .from('profiles')
     .select('preferences, home_city, currency')
-    .eq('id', user!.id)
+    .eq('id', user.id)
     .maybeSingle();
 
   // مستوى 'premium' أُدمج في 'luxury'؛ نُطبّع التفضيلات المحفوظة قبل تمريرها.

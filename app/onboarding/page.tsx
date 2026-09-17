@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+import { requireUser } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { OnboardingFlow } from '@/components/plan/OnboardingFlow';
 import { ScreenLogo } from '@/components/shell/ScreenLogo';
@@ -6,11 +6,10 @@ import { ScreenLogo } from '@/components/shell/ScreenLogo';
 export const metadata = { title: 'إعداد ملفك' };
 
 export default async function OnboardingPage() {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { supabase, user } = await requireUser('/onboarding');
 
   const { data: profile } = await supabase
-    .from('profiles').select('onboarded, full_name').eq('id', user!.id).maybeSingle();
+    .from('profiles').select('onboarded, full_name').eq('id', user.id).maybeSingle();
 
   if (profile?.onboarded) redirect('/dashboard');
 
@@ -19,7 +18,7 @@ export default async function OnboardingPage() {
       <div aria-hidden className="aurora pointer-events-none fixed inset-0" />
       <div className="relative mx-auto max-w-2xl">
         <ScreenLogo className="mb-7" />
-        <OnboardingFlow name={profile?.full_name ?? user?.user_metadata?.full_name ?? null} />
+        <OnboardingFlow name={profile?.full_name ?? user.user_metadata?.full_name ?? null} />
       </div>
     </main>
   );

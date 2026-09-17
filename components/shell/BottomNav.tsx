@@ -10,13 +10,15 @@
  * الجوال: عرض شبه كامل مع احترام منطقة الأمان (safe-area).
  * سطح المكتب: نفس الكبسولة في المنتصف مع إظهار التسميات النصية.
  *
- * يُخفي نفسه في مسارات المصادقة والإعداد حيث يشتّت التنقل.
+ * في مسارات المصادقة والإعداد تُخفى روابط التنقّل وحدها ويبقى زر المظهر،
+ * فيظل تبديل الفاتح/الداكن متاحاً من مكان واحد في كل صفحات التطبيق.
  */
 
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, Search, BookMarked, User } from 'lucide-react';
+import { ThemeToggle } from '@/components/shared/ThemeToggle';
 import { cn } from '@/lib/utils';
 
 const ITEMS = [
@@ -26,42 +28,47 @@ const ITEMS = [
   { href: '/chat', label: 'المساعد', icon: User, match: (p: string) => p.startsWith('/chat') },
 ];
 
-/** مسارات بلا شريط تنقّل. */
+/** مسارات بلا روابط تنقّل — يبقى فيها زر المظهر وحده. */
 const HIDDEN = ['/login', '/onboarding', '/auth'];
 
 export function BottomNav() {
   const pathname = usePathname() || '/';
-  if (HIDDEN.some((h) => pathname.startsWith(h))) return null;
+  const navHidden = HIDDEN.some((h) => pathname.startsWith(h));
 
   return (
-    <nav
-      aria-label="التنقل الرئيسي"
-      className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
-    >
+    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
       <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-white/10 bg-neutral-900/90 p-1.5 shadow-float backdrop-blur-xl sm:gap-2 sm:p-2 dark:bg-neutral-900/95">
-        {ITEMS.map(({ href, label, icon: Icon, match }) => {
-          const active = match(pathname);
-          return (
-            <Link
-              key={href}
-              href={href}
-              aria-current={active ? 'page' : undefined}
-              className={cn(
-                'group relative flex items-center justify-center gap-2 rounded-full transition-all duration-300',
-                active
-                  ? 'bg-primary text-primary-foreground shadow-glow'
-                  : 'text-primary hover:bg-primary/15',
-                // الجوال: أيقونة فقط. سطح المكتب: أيقونة + تسمية للعنصر النشط
-                active ? 'h-12 px-4 sm:px-5' : 'size-12',
-              )}
-            >
-              <Icon className="size-[20px] shrink-0" strokeWidth={active ? 2.2 : 2} />
-              {active && <span className="hidden text-[13px] font-semibold sm:inline">{label}</span>}
-              <span className="sr-only">{label}</span>
-            </Link>
-          );
-        })}
+        {!navHidden && (
+          <>
+            <nav aria-label="التنقل الرئيسي" className="flex items-center gap-1 sm:gap-2">
+              {ITEMS.map(({ href, label, icon: Icon, match }) => {
+                const active = match(pathname);
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    aria-current={active ? 'page' : undefined}
+                    className={cn(
+                      'group relative flex items-center justify-center gap-2 rounded-full transition-all duration-300',
+                      active
+                        ? 'bg-primary text-primary-foreground shadow-glow'
+                        : 'text-primary hover:bg-primary/15',
+                      // الجوال: أيقونة فقط. سطح المكتب: أيقونة + تسمية للعنصر النشط
+                      active ? 'h-12 px-4 sm:px-5' : 'size-12',
+                    )}
+                  >
+                    <Icon className="size-[20px] shrink-0" strokeWidth={active ? 2.2 : 2} />
+                    {active && <span className="hidden text-[13px] font-semibold sm:inline">{label}</span>}
+                    <span className="sr-only">{label}</span>
+                  </Link>
+                );
+              })}
+            </nav>
+            <span aria-hidden className="h-6 w-px shrink-0 bg-white/15" />
+          </>
+        )}
+        <ThemeToggle />
       </div>
-    </nav>
+    </div>
   );
 }

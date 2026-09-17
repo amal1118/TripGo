@@ -53,6 +53,11 @@ export async function POST(request: Request) {
     });
   } catch (err) {
     const status = err instanceof OpenRouterError ? err.status : 500;
+    console.error('[chat] failed', err);
+    // مفتاح مفقود: قُل ذلك بدل «حاول لاحقاً» التي تُخفي عطل إعداد دائم.
+    if (err instanceof OpenRouterError && err.configError) {
+      return new Response('المساعد غير مُهيّأ على الخادم (مفتاح OpenRouter مفقود).', { status: 500 });
+    }
     return new Response('تعذّر الاتصال بالمساعد حالياً.', { status });
   }
 }

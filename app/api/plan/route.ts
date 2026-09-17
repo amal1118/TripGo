@@ -131,13 +131,17 @@ export async function POST(request: Request) {
     const outOfQuota = err instanceof OpenRouterError && err.quotaExhausted;
     const busy = upstream === 429 && !outOfQuota;
     const badKey = upstream === 401 || upstream === 403;
+    // مفتاح مفقود ≠ مزوّد متعثّر: الأول لا يُصلحه تكرار المحاولة.
+    const misconfigured = err instanceof OpenRouterError && err.configError;
     // لا نُمرّر رمز المزوّد كما هو (404/400 من نموذج مسحوب تُربك الواجهة):
     // فشل المزوّد هو 502 من منظور عميلنا.
-    const status = outOfQuota || busy ? 429 : badKey ? 500 : 502;
+    const status = outOfQuota || busy ? 429 : badKey || misconfigured ? 500 : 502;
 
     return NextResponse.json(
       {
-        error: outOfQuota
+        error: misconfigured
+          ? 'خدمة التخطيط غير مُهيّأة على الخادم (مفتاح OpenRouter مفقود). إعادة المحاولة لن تُجدي.'
+          : outOfQuota
           ? 'انتهت حصة الطلبات المجانية اليومية في OpenRouter (50 طلباً). تتجدّد غداً، أو أضف رصيداً لرفع الحد.'
           : busy
             ? 'النماذج المجانية مزدحمة حالياً، أعد المحاولة بعد دقيقة.'

@@ -1,7 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { Bell } from 'lucide-react';
-import { ThemeToggle } from '@/components/shared/ThemeToggle';
 
 /**
  * ScreenHeader — ترويسة داخل الصفحة على نمط تطبيقات الجوال:
@@ -37,7 +36,6 @@ export function ScreenHeader({
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
-        <ThemeToggle />
         <button
           type="button"
           aria-label="الإشعارات"

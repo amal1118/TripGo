@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { Plus, Sparkles, MapPin, CalendarRange, ArrowLeft } from 'lucide-react';
-import { createClient } from '@/lib/supabase/server';
+import { requireUser } from '@/lib/supabase/server';
 import { AppScreen } from '@/components/shell/AppScreen';
 import { ScreenHeader } from '@/components/shell/ScreenHeader';
 import { Badge } from '@/components/ui/badge';
@@ -13,21 +13,20 @@ export const dynamic = 'force-dynamic';
 const STATUS_AR = { draft: 'مسودة', planned: 'مُخططة', completed: 'منتهية' } as const;
 
 export default async function DashboardPage() {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { supabase, user } = await requireUser('/dashboard');
 
   const [{ data: trips }, { data: profile }] = await Promise.all([
     supabase
       .from('trips')
       .select('id, title, destination, start_date, cover_image, status')
-      .eq('user_id', user!.id)
+      .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(24),
-    supabase.from('profiles').select('full_name, avatar_url').eq('id', user!.id).maybeSingle(),
+    supabase.from('profiles').select('full_name, avatar_url').eq('id', user.id).maybeSingle(),
   ]);
 
-  const name = profile?.full_name ?? user?.user_metadata?.full_name ?? 'مسافر';
-  const avatar = profile?.avatar_url ?? user?.user_metadata?.avatar_url ?? null;
+  const name = profile?.full_name ?? user.user_metadata?.full_name ?? 'مسافر';
+  const avatar = profile?.avatar_url ?? user.user_metadata?.avatar_url ?? null;
 
   return (
     <AppScreen>

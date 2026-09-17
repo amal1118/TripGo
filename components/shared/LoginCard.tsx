@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toErrorMessage } from '@/lib/utils';
+import { getAuthCallbackUrl } from '@/lib/site-url';
 
 const GoogleLogo = (
   <svg viewBox="0 0 24 24" className="size-5" aria-hidden>
@@ -29,14 +30,21 @@ export function LoginCard() {
   const [sentTo, setSentTo] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    if (params.get('error')) toast.error('تعذّر إكمال تسجيل الدخول. حاول مرة أخرى.');
+    const code = params.get('error');
+    if (!code) return;
+    // `reused_code` تحديداً شائع على الجوال: نداء ثانٍ على رابط الرجوع
+    // (تحديث بالسحب، أو متصفح داخل تطبيق يُسلّم الرابط للمتصفح الافتراضي)
+    // يُحاول استبدال كود Google نفسه مرتين، والثانية ترفضها Google.
+    toast.error(
+      code === 'reused_code'
+        ? 'انتهت صلاحية رابط الدخول أو استُخدم مرتين. اضغط الزر مرة واحدة وانتظر.'
+        : 'تعذّر إكمال تسجيل الدخول. حاول مرة أخرى.',
+      { description: params.get('reason') ?? undefined },
+    );
   }, [params]);
 
   /** الوجهة بعد نجاح المصادقة — نفس المسار للمزوّد وللرابط السحري. */
-  const callbackUrl = React.useCallback(
-    () => `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
-    [next],
-  );
+  const callbackUrl = React.useCallback(() => getAuthCallbackUrl(next), [next]);
 
   const signInWithGoogle = React.useCallback(async () => {
     setGooglePending(true);

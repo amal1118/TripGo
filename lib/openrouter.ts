@@ -80,6 +80,13 @@ export class OpenRouterError extends Error {
     readonly model?: string,
     /** صحيح عندما يكون السبب نفاد حصة الطلبات المجانية اليومية لا ازدحاماً. */
     readonly quotaExhausted = false,
+    /**
+     * عطل في إعدادات الخادم (مفتاح مفقود) لا في المزوّد.
+     * بلا هذا التمييز كان غياب المفتاح يسقط في فرع «المزوّد فشل» فيُعرض
+     * للمستخدم «النماذج المجانية غير مستقرة — أعد المحاولة»: نصيحة تدفعه
+     * لإعادة محاولة لن تنجح أبداً، وتُخفي العطل الحقيقي عن المطوّر.
+     */
+    readonly configError = false,
   ) {
     super(message);
     this.name = 'OpenRouterError';
@@ -112,8 +119,13 @@ export async function freeQuota(): Promise<{ used: number; limit: number; remain
 }
 
 function headers() {
-  const key = process.env.OPENROUTER_API_KEY;
-  if (!key) throw new OpenRouterError('OPENROUTER_API_KEY غير معرّف في متغيرات البيئة', 500);
+  const key = process.env.OPENROUTER_API_KEY?.trim();
+  if (!key) {
+    throw new OpenRouterError(
+      'OPENROUTER_API_KEY غير معرّف في متغيرات البيئة',
+      500, undefined, false, true,
+    );
+  }
   return {
     Authorization: `Bearer ${key}`,
     'Content-Type': 'application/json',
@@ -281,7 +293,8 @@ export async function complete({
         // إجهاض المستدعي (انتهاء مهلة الطلب كله) نهائي؛ أما انتهاء مهلة
         // المحاولة الواحدة فيعني ببساطة: جرّب النموذج التالي.
         if (signal?.aborted) throw err;
-        if (err instanceof OpenRouterError && (err.status === 401 || err.status === 403)) throw err;
+        // عطل إعداد أو مفتاح مرفوض: النموذج التالي سيفشل بالضبط كما فشل هذا.
+        if (err instanceof OpenRouterError && (err.configError || err.status === 401 || err.status === 403)) throw err;
         if (err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError')) {
           console.warn('[openrouter] timeout', model, `${perAttemptTimeoutMs}ms`);
         }

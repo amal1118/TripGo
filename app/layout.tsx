@@ -3,6 +3,7 @@ import { Alexandria, Plus_Jakarta_Sans, Playfair_Display } from 'next/font/googl
 import { ThemeProvider } from '@/components/shared/ThemeProvider';
 import { Toaster } from 'sonner';
 import { BottomNav } from '@/components/shell/BottomNav';
+import { AuthErrorRelay } from '@/components/shared/AuthErrorRelay';
 import './globals.css';
 
 /**
@@ -63,6 +64,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           {children}
           <BottomNav />
+          <AuthErrorRelay />
           <Toaster position="top-center" richColors closeButton toastOptions={{ style: { fontFamily: 'var(--font-sans)' } }} />
         </ThemeProvider>
       </body>

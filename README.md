@@ -18,14 +18,33 @@ npm run dev
    ويضيف trigger ينشئ ملفاً شخصياً تلقائياً عند أول تسجيل دخول.
 3. **Authentication → Providers** ← فعّل Google و/أو GitHub وأدخل
    `Client ID` و`Client Secret` من لوحة المزوّد.
-4. **Authentication → URL Configuration**:
-   - Site URL: `http://localhost:3000`
-   - Redirect URLs: `http://localhost:3000/auth/callback` (وأضف رابط الإنتاج لاحقاً).
+4. **Authentication → URL Configuration** — أهم خطوة، وسببُ أغلب أعطال الدخول:
+   - **Site URL**: رابط الإنتاج (`https://<نطاقك>`)، لا `localhost`.
+     هذا هو المكان الذي يرمي إليه Supabase المستخدمَ عند أي خطأ أو عند
+     `redirect_to` غير مُدرج — واتركه `localhost` يعني صفحة ميتة على الجوال.
+   - **Redirect URLs** (أضف كل سطر):
+     ```
+     https://<نطاقك>/auth/callback
+     http://localhost:3000/auth/callback
+     ```
+   - في **Google Cloud Console** → OAuth client → Authorized redirect URIs
+     يجب أن يوجد `https://<project-ref>.supabase.co/auth/v1/callback`
+     (نطاق Supabase نفسه، لا نطاق التطبيق).
 5. انسخ `Project URL` و`anon public key` إلى `.env.local`.
+6. اضبط `NEXT_PUBLIC_SITE_URL` على رابط الإنتاج في متغيّرات بيئة Vercel.
+
+> **لماذا `NEXT_PUBLIC_SITE_URL` ضروري؟** `lib/site-url.ts` يبني منه وجهة
+> `redirect_to`. لو اعتمدنا على `window.location.origin` لتغيّرت الوجهة مع كل
+> نطاق معاينة من Vercel (ومع كل إعادة ربط للمشروع)، ولوجب إدراج كل نطاق جديد
+> في Supabase يدوياً — وأي نطاق غير مُدرج يُسقط المستخدم على Site URL بخطأ
+> `Unable to exchange external code`. محلياً وعلى شبكة الـ LAN يبقى العنوان
+> الحالي مُستخدَماً حتى لا ينكسر اختبار الجوال على خادم التطوير.
 
 **مسار المصادقة:** `LoginCard` → `signInWithOAuth` → مزوّد OAuth →
 `/auth/callback` → `exchangeCodeForSession` → `/onboarding` أو `/dashboard`.
 الجلسة تُحدَّث على كل طلب في `middleware.ts` عبر `lib/supabase/middleware.ts`.
+أخطاء المصادقة التي يُسقطها Supabase على أي صفحة يلتقطها `AuthErrorRelay`
+ويحوّلها إلى رسالة مقروءة على `/login`.
 
 ## 2) إعداد OpenRouter
 
