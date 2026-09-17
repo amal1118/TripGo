@@ -34,6 +34,9 @@ export async function updateSession(request: NextRequest) {
   if (!user && PROTECTED.some((p) => pathname.startsWith(p))) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
+    // clone() ينسخ معاملات الرابط الأصلي أيضاً، فتظهر على /login مكرّرة
+    // بلا معنى (?destination=…&q=…&next=…). نُفرّغها ثم نضع `next` وحده.
+    url.search = '';
     // pathname + search معاً، وإلا ضاع نص البحث القادم من صفحة الهبوط
     url.searchParams.set('next', pathname + request.nextUrl.search);
     return NextResponse.redirect(url);

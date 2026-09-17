@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { Loader2, Mail, ArrowRight, CheckCircle2 } from 'lucide-react';
@@ -113,11 +114,17 @@ export function LoginCard() {
   return (
     <div className="card-warm p-7 shadow-card-lg sm:p-10">
       <div className="mb-8 text-center">
-        <div className="mx-auto mb-5 grid size-14 place-items-center rounded-2xl bg-primary/15 text-xl font-semibold text-primary">
-          TG
+        <div className="mx-auto mb-5 size-14 overflow-hidden rounded-2xl shadow-sm">
+          <Image src="/icon-mark.png" alt="" width={512} height={512} className="size-full object-cover" />
         </div>
         <h1 className="text-2xl font-semibold">أهلاً بك في TripGo</h1>
-        <p className="mt-2 text-sm text-muted-foreground">سجّل دخولك لحفظ رحلاتك والوصول للمساعد الذكي</p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          {/* وصل من صفحة محميّة؟ اشرح السبب بدل إظهار نموذج دخول بلا سياق —
+              وإلا بدا الأمر وكأن الزرّ الذي ضغطه لم يستجب. */}
+          {params.get('next')
+            ? 'خطوة واحدة قبل بناء خطتك — سجّل دخولك ونكمل من حيث توقفت'
+            : 'سجّل دخولك لحفظ رحلاتك والوصول للمساعد الذكي'}
+        </p>
       </div>
 
       <Button
