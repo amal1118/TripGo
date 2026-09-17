@@ -1,3 +1,25 @@
+👥 Project Information
+👥 Group
+Group 5
+
+👩‍💻 Team Members
+Shahad Khalid
+Amal Al-Zahrani
+Bashayer Al-Sheibani
+Asayil Al-qahtani
+Abdulaziz Al-Shahrani
+Raghad Al-Otaibi
+Raghad Al-Anazi
+🎓 Training Program
+Vibe Coding Training Program
+
+🏫 Organization
+SDAIA Academy
+
+🔗 GitHub
+SDAIA Academy on GitHub
+
+
 # TripGo — مخطط رحلات ذكي
 
 تطبيق Next.js موحّد (واجهة + API في مشروع واحد) لتخطيط الرحلات عبر نماذج LLM مجانية.
