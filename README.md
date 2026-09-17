@@ -1,24 +1,28 @@
-## 👥 Project Information
-# 👥 Group
-# Group 5
+### 👥 Group
 
-👩‍💻 Team Members
-Shahad Khalid
-Amal Al-Zahrani
-Bashayer Al-Sheibani
-Asayil Al-qahtani
-Abdulaziz Al-Shahrani
-Raghad Al-Otaibi
-Raghad Al-Anazi
-🎓 Training Program
-Vibe Coding Training Program
+**Group 5**
 
-#  Organization
-SDAIA Academy
+### 👩‍💻 Team Members
 
-# 🔗 GitHub
-SDAIA Academy on GitHub
-https://github.com/SDAIAAcademy
+1. Shahad Khalid
+2. Amal Al-Zahrani
+3. Asayil Al-qahtani
+4. Abdulaziz Al-Shahrani
+5. Raghad Al-Otaibi
+6. Raghad Al-Anazi
+
+### 🎓 Training Program
+
+**Vibe Coding Training Program**
+
+### 🏫 Organization
+
+**SDAIA Academy**
+
+### 🔗 GitHub
+
+[SDAIA Academy on GitHub](https://github.com/SDAIAAcademy)
+
 
 
 # TripGo — مخطط رحلات ذكي
