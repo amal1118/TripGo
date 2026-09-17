@@ -51,17 +51,33 @@ export async function POST(request: Request) {
     const { content, model } = await complete({
       models: FREE_MODELS.planner,
       json: true,
-      temperature: 0.65,
-      maxTokens: 8000,
-      // مقيسة: النموذج الناجح يستغرق ~70 ثانية لخطة من 8000 توكن، والفشل
-      // السريع (429/502) يكلّف ثانية واحدة — فمهلة 85s تحمي من نموذج معلّق
-      // دون أن تقطع نموذجاً يعمل، ويبقى متسع لمحاولة تالية داخل سقف 110s.
-      perAttemptTimeoutMs: 85_000,
+      temperature: 0.55,
+      /**
+       * 16k بالضبط — والرقم حسّاس في الاتجاهين:
+       *  • 8000 (القيمة السابقة) يبتر JSON دائماً ⇒ فشل تحليل ⇒ 502.
+       *  • 20000 يجعل المزوّد يردّ محتوى فارغاً مع completion_tokens=20000،
+       *    أي يلتهم الميزانية كاملة بلا إخراج.
+       * القياس: الخطة الكاملة تستهلك ~7–8k توكن فعلياً، و16k يترك هامشاً.
+       */
+      maxTokens: 16_000,
+      /**
+       * 15s — مقيسة على توزيع فعلي: كل نجاح لوحظ بين 0.5 و 4 ثوانٍ، أما
+       * الطلب الذي يتجاوز ذلك فلا يعود إطلاقاً (تعليق عند المزوّد). مهلة
+       * طويلة لا تُنقذ طلباً معلّقاً، بل تُضيّع وقت المستخدم وتمنع محاولة
+       * أخرى — وهي سبب خطأ «aborted due to timeout» الذي كان يظهر.
+       */
+      perAttemptTimeoutMs: 15_000,
+      // الحساب المجاني محدود بـ 50 طلباً يومياً لكل الحساب — بلا سقف كانت
+      // محاولةٌ فاشلة واحدة تستهلك 8 طلبات فتُنهي حصة اليوم سريعاً.
+      maxAttempts: 3,
+      discover: false,
+      // بلا هذا يردّ النموذج أحياناً 16000 توكن تفكيراً و0 حرفاً محتوى
+      noReasoning: true,
       messages: [
         { role: 'system', content: tripPlannerSystemPrompt() },
         { role: 'user', content: tripPlannerUserPrompt(preferences) },
       ],
-      signal: AbortSignal.timeout(110_000),
+      signal: AbortSignal.timeout(100_000),
     });
 
     // 4) تنظيف + تحقق
@@ -75,6 +91,13 @@ export async function POST(request: Request) {
       );
     }
     const itinerary = result.data;
+
+    // النموذج يُهمل أحياناً إجمالي التكلفة (يعيد 0)، وformatPrice يعرض 0
+    // كـ«مجاناً» فتبدو الرحلة بلا تكلفة. نشتقّه من تفصيل الميزانية.
+    if (!itinerary.meta.estimatedTotalCost) {
+      itinerary.meta.estimatedTotalCost = Object.values(itinerary.budgetBreakdown)
+        .reduce((sum, v) => sum + (Number(v) || 0), 0);
+    }
 
     // 5) الحفظ
     let tripId: string | null = null;
@@ -105,19 +128,22 @@ export async function POST(request: Request) {
     const upstream = err instanceof OpenRouterError ? err.status : 500;
     console.error('[plan] failed', err);
 
-    const busy = upstream === 429;
+    const outOfQuota = err instanceof OpenRouterError && err.quotaExhausted;
+    const busy = upstream === 429 && !outOfQuota;
     const badKey = upstream === 401 || upstream === 403;
     // لا نُمرّر رمز المزوّد كما هو (404/400 من نموذج مسحوب تُربك الواجهة):
     // فشل المزوّد هو 502 من منظور عميلنا.
-    const status = busy ? 429 : badKey ? 500 : 502;
+    const status = outOfQuota || busy ? 429 : badKey ? 500 : 502;
 
     return NextResponse.json(
       {
-        error: busy
-          ? 'النماذج المجانية مزدحمة حالياً، أعد المحاولة بعد دقيقة.'
-          : badKey
-            ? 'مفتاح OpenRouter غير صالح أو منتهي الصلاحية.'
-            : 'تعذّر توليد الخطة.',
+        error: outOfQuota
+          ? 'انتهت حصة الطلبات المجانية اليومية في OpenRouter (50 طلباً). تتجدّد غداً، أو أضف رصيداً لرفع الحد.'
+          : busy
+            ? 'النماذج المجانية مزدحمة حالياً، أعد المحاولة بعد دقيقة.'
+            : badKey
+              ? 'مفتاح OpenRouter غير صالح أو منتهي الصلاحية.'
+              : 'تعذّر توليد الخطة. النماذج المجانية غير مستقرة الآن — أعد المحاولة.',
         // التفصيل في بيئة التطوير فقط — يختصر تشخيص أعطال المزوّد
         ...(process.env.NODE_ENV !== 'production' && err instanceof Error
           ? { detail: err.message.slice(0, 300) }

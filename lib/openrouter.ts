@@ -18,11 +18,17 @@ export const FREE_MODELS = {
   // ملاحظة مقيسة: نماذج "التفكير" (nex-agi وشبيهاتها) تستهلك ميزانية التوكنز
   // كاملة في التفكير وتردّ finish_reason=length بمحتوى فارغ — غير صالحة
   // لمهمة JSON طويلة، لذا لا تتصدّر القائمة.
+  /**
+   * ترتيب مقيس (سبتمبر 2026): nex-n2.5-mini وحده يُنهي خطة كاملة بثبات
+   * (finish_reason=stop خلال ثوانٍ)، لكنه يردّ أحياناً محتوى فارغاً بلا
+   * سبب — وهو عطل عابر. لذلك يتكرّر مرّتين قبل الهبوط إلى غيره:
+   * إعادة المحاولة عليه أنجح من نموذج أضعف.
+   */
   planner: [
-    process.env.OPENROUTER_MODEL_PLANNER || 'dots-studio/dots-3-note-preview:free',
-    'nvidia/nemotron-3-super-120b-a12b:free',
-    'google/gemma-4-31b-it:free',
-    'google/gemma-4-26b-a4b-it:free',
+    process.env.OPENROUTER_MODEL_PLANNER || 'nex-agi/nex-n2.5-mini:free',
+    process.env.OPENROUTER_MODEL_PLANNER || 'nex-agi/nex-n2.5-mini:free',
+    process.env.OPENROUTER_MODEL_PLANNER || 'nex-agi/nex-n2.5-mini:free',
+    'dots-studio/dots-3-note-preview:free',
   ],
   chat: [
     // مقيسة: nemotron يعطي عربية نظيفة (~15s)، بينما dots-3 يخلط لاتينية
@@ -45,13 +51,63 @@ interface CompletionOptions {
   json?: boolean;
   /** مهلة قصوى لكل نموذج على حدة — تمنع نموذجاً بطيئاً من ابتلاع الميزانية كلها. */
   perAttemptTimeoutMs?: number;
+  /**
+   * سقف عدد الطلبات المرسلة فعلاً إلى OpenRouter.
+   *
+   * مهم على الحساب المجاني: الحدّ 50 طلباً للنماذج المجانية يومياً لكل
+   * الحساب. بلا سقف، محاولةُ خطةٍ واحدة تفشل قد تستهلك 8 طلبات (4 نماذج
+   * معرّفة + 4 مكتشفة) فتلتهم حصة اليوم في ست محاولات.
+   */
+  maxAttempts?: number;
+  /** تعطيل شبكة أمان الاكتشاف — تُضاعف استهلاك الحصة اليومية. */
+  discover?: boolean;
+  /**
+   * إيقاف «التفكير» الداخلي للنموذج.
+   *
+   * مقيس ومهم: نماذج التفكير المجانية تُنفق ميزانية الإخراج كاملة على
+   * تفكير خفي ثم تردّ محتوى فارغاً (finish_reason=length مع
+   * completion_tokens = max_tokens بالضبط وchars=0)، والسلوك عشوائي —
+   * الطلب نفسه ينجح مرة ويفشل أخرى. إيقاف التفكير يجعل المخرجات مستقرة.
+   */
+  noReasoning?: boolean;
   signal?: AbortSignal;
 }
 
 export class OpenRouterError extends Error {
-  constructor(message: string, readonly status: number = 502, readonly model?: string) {
+  constructor(
+    message: string,
+    readonly status: number = 502,
+    readonly model?: string,
+    /** صحيح عندما يكون السبب نفاد حصة الطلبات المجانية اليومية لا ازدحاماً. */
+    readonly quotaExhausted = false,
+  ) {
     super(message);
     this.name = 'OpenRouterError';
+  }
+}
+
+/**
+ * الحساب المجاني في OpenRouter محدود بـ 50 طلباً للنماذج المجانية يومياً.
+ * عند النفاد يردّ 429 برسالة مختلفة عن ازدحام المزوّد — والتفريق مهم لأن
+ * «أعد المحاولة بعد دقيقة» نصيحة خاطئة تماماً في حالة نفاد الحصة.
+ */
+function isDailyQuotaError(status: number, detail: string): boolean {
+  if (status !== 429) return false;
+  return /free-model|free model|daily limit|per day|add credits/i.test(detail);
+}
+
+/** حصة الطلبات المجانية المتبقية اليوم — للتشخيص ورسائل الخطأ. */
+export async function freeQuota(): Promise<{ used: number; limit: number; remaining: number } | null> {
+  try {
+    const res = await fetch('https://openrouter.ai/api/v1/key', {
+      headers: { Authorization: `Bearer ${process.env.OPENROUTER_API_KEY ?? ''}` },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return null;
+    const d = await res.json();
+    return d?.data?.free_model_daily_requests ?? null;
+  } catch {
+    return null;
   }
 }
 
@@ -134,11 +190,15 @@ export async function complete({
   temperature = 0.7,
   maxTokens = 4096,
   json = false,
-  perAttemptTimeoutMs = 60_000,
+  perAttemptTimeoutMs = 45_000,
+  maxAttempts = Number.POSITIVE_INFINITY,
+  discover = true,
+  noReasoning = false,
   signal,
 }: CompletionOptions): Promise<{ content: string; model: string }> {
   let lastError: unknown;
   const tried = new Set<string>();
+  let attempts = 0;
 
   const attempt = async (model: string): Promise<{ content: string; model: string } | null> => {
     const res = await fetch(OPENROUTER_URL, {
@@ -151,14 +211,20 @@ export async function complete({
         temperature,
         max_tokens: maxTokens,
         ...(json ? { response_format: { type: 'json_object' } } : {}),
+        ...(noReasoning ? { reasoning: { enabled: false } } : {}),
       }),
     });
 
     if (!res.ok) {
       const detail = await res.text().catch(() => '');
       if (RETRYABLE_STATUS.has(res.status)) {
-        lastError = new OpenRouterError(`فشل ${model}: ${res.status} ${detail.slice(0, 200)}`, res.status, model);
+        const quota = isDailyQuotaError(res.status, detail);
+        lastError = new OpenRouterError(
+          `فشل ${model}: ${res.status} ${detail.slice(0, 200)}`, res.status, model, quota,
+        );
         console.warn('[openrouter] skip', model, res.status, detail.slice(0, 160));
+        // نفاد الحصة اليومية يخصّ الحساب كله لا النموذج — لا فائدة من التالي
+        if (quota) throw lastError;
         return null;
       }
       throw new OpenRouterError(`خطأ من OpenRouter (${res.status}): ${detail.slice(0, 300)}`, res.status, model);
@@ -173,20 +239,41 @@ export async function complete({
 
     const choice = data?.choices?.[0];
     const content: string = choice?.message?.content ?? '';
+    const why = choice?.finish_reason ?? choice?.native_finish_reason ?? 'unknown';
+
     if (!content.trim()) {
       // finish_reason=length بمحتوى فارغ = نموذج تفكير التهم ميزانية التوكنز
-      const why = choice?.finish_reason ?? choice?.native_finish_reason ?? 'unknown';
       lastError = new OpenRouterError(`رد فارغ من ${model} (finish_reason=${why})`, 502, model);
       console.warn('[openrouter] empty', model, 'finish_reason=', why);
       return null;
     }
+
+    /**
+     * finish_reason=length يعني أن النموذج قُطع في منتصف الكلام. مع json=true
+     * تكون النتيجة JSON مبتوراً لا يمكن تحليله — وكان يُعاد كنجاح فيفشل
+     * التحليل لاحقاً ويردّ 502 بلا محاولة نموذج آخر. نعامله كفشل قابل للتجاوز.
+     */
+    if (json && why === 'length') {
+      lastError = new OpenRouterError(`رد مبتور من ${model} (تجاوز max_tokens)`, 502, model);
+      console.warn('[openrouter] truncated', model, `${content.length} chars`);
+      return null;
+    }
+
     return { content, model };
   };
 
-  const run = async (candidates: readonly string[]) => {
+  /**
+   * @param allowRepeat القائمة الصريحة قد تُكرّر النموذج الأفضل عمداً: أعطال
+   *   النماذج المجانية عابرة في الغالب (رد فارغ عشوائي بلا سبب)، فإعادة
+   *   المحاولة على النموذج الأقوى أجدى من الهبوط إلى نموذج أضعف.
+   */
+  const run = async (candidates: readonly string[], allowRepeat = false) => {
     for (const model of candidates) {
-      if (!model || tried.has(model)) continue;
+      if (!model) continue;
+      if (!allowRepeat && tried.has(model)) continue;
+      if (attempts >= maxAttempts) break;
       tried.add(model);
+      attempts++;
       try {
         const ok = await attempt(model);
         if (ok) return ok;
@@ -204,12 +291,12 @@ export async function complete({
     return null;
   };
 
-  const direct = await run(models);
+  const direct = await run(models, true);
   if (direct) return direct;
 
   // شبكة أمان: كل النماذج المُعرَّفة فشلت (غالباً سُحبت من الكتالوج) —
   // نجرّب ما هو متاح مجاناً الآن فعلياً.
-  const discovered = await discoverFreeModels(json);
+  const discovered = discover && attempts < maxAttempts ? await discoverFreeModels(json) : [];
   if (discovered.length) {
     console.warn('[openrouter] falling back to discovered free models', discovered.slice(0, 4));
     const rescue = await run(discovered.slice(0, 4));
@@ -316,12 +403,55 @@ export function extractJson<T = unknown>(raw: string): T {
   try {
     return JSON.parse(text) as T;
   } catch {
-    // محاولة إنقاذ أخيرة: حذف الفواصل الزائدة قبل } أو ]
+    // محاولة إنقاذ أولى: حذف الفواصل الزائدة قبل } أو ]
     const repaired = text.replace(/,(\s*[}\]])/g, '$1');
     try {
       return JSON.parse(repaired) as T;
     } catch {
+      // ملاذ أخير: JSON مبتور (انقطع الرد في منتصف عنصر). نقصّه عند آخر
+      // عنصر مكتمل ثم نُغلق ما بقي مفتوحاً — خطة ناقصة أفضل من صفحة خطأ،
+      // وzod يملأ ما ينقص بقيم افتراضية.
+      const closed = closeTruncatedJson(raw);
+      if (closed) {
+        try { return JSON.parse(closed) as T; } catch { /* لا شيء نفعله */ }
+      }
       throw new OpenRouterError('تعذّر تحليل JSON القادم من النموذج', 502);
     }
   }
+}
+
+/**
+ * يُغلق كائن JSON انقطع في منتصفه.
+ * يمشي على النص حرفاً حرفاً (مع احترام النصوص وعلامات الهروب) ليعرف ما
+ * تبقّى مفتوحاً، ثم يتراجع إلى آخر حدّ آمن ويُغلق الأقواس بالترتيب العكسي.
+ */
+function closeTruncatedJson(raw: string): string | null {
+  const start = raw.indexOf('{');
+  if (start === -1) return null;
+
+  const stack: string[] = [];
+  let inString = false;
+  let escaped = false;
+  /** آخر موضع كان فيه الهيكل «نظيفاً»: بعد قيمة مكتملة مباشرة. */
+  let safeEnd = -1;
+
+  for (let i = start; i < raw.length; i++) {
+    const ch = raw[i];
+    if (escaped) { escaped = false; continue; }
+    if (ch === '\\') { escaped = true; continue; }
+    if (ch === '"') { inString = !inString; if (!inString) safeEnd = i + 1; continue; }
+    if (inString) continue;
+
+    if (ch === '{' || ch === '[') stack.push(ch);
+    else if (ch === '}' || ch === ']') { stack.pop(); safeEnd = i + 1; }
+    else if (ch === ',') safeEnd = i;           // نقطع قبل الفاصلة لا بعدها
+    else if (/[\d]/.test(ch)) safeEnd = i + 1;
+  }
+
+  if (!stack.length || safeEnd <= start) return null;
+
+  let body = raw.slice(start, safeEnd).replace(/,\s*$/, '');
+  // أغلق ما تبقّى مفتوحاً بترتيب عكسي
+  for (let i = stack.length - 1; i >= 0; i--) body += stack[i] === '{' ? '}' : ']';
+  return body;
 }

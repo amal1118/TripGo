@@ -18,6 +18,9 @@ export const PROMPT_VERSION = '2026.09.1';
 const JSON_ONLY_GUARD = `
 ### قواعد الإخراج الإلزامية (غير قابلة للتفاوض)
 1. أرجع **كائن JSON واحداً صالحاً فقط**. لا نص قبله، لا نص بعده.
+1أ. ابدأ الكتابة بـ "{" فوراً. ممنوع منعاً باتاً أي تفكير أو تخطيط أو مسوّدة
+   قبل JSON (مثل "We need to..." أو "دعنا نحسب"). التفكير داخل الرد يستهلك
+   ميزانية الإخراج فيُبتر JSON وتفشل الخطة كلها.
 2. ممنوع منعاً باتاً: أسوار الشيفرة (\`\`\`json)، التعليقات، الشروحات، الاعتذارات، الفواصل الزائدة (trailing commas).
 3. أول حرف في ردك يجب أن يكون "{" وآخر حرف يجب أن يكون "}".
 4. التزم حرفياً بأسماء المفاتيح والأنواع في المخطط. لا تضف مفاتيح غير موجودة ولا تحذف مفتاحاً مطلوباً.
@@ -42,141 +45,31 @@ const BRAND_PERSONA = `
  * في lib/schemas.ts (itinerarySchema) — أي تعديل هنا يستوجب تعديلاً هناك.
  */
 export const ITINERARY_JSON_SCHEMA = `{
-  "meta": {
-    "title": "string — عنوان جذاب للرحلة (≤ 60 حرفاً)",
-    "destination": "string — اسم المدينة والدولة بالعربية",
-    "destinationEn": "string — اسم المدينة بالإنجليزية (لاستعلامات الصور والخرائط)",
-    "summary": "string — فقرة واحدة 2-3 أسطر تصف روح الرحلة",
-    "durationDays": "number",
-    "currency": "string — رمز ISO مثل SAR أو AED أو EUR",
-    "estimatedTotalCost": "number — التكلفة التقديرية الإجمالية للشخص الواحد",
-    "bestTimeNote": "string — ملاحظة قصيرة عن الطقس أو الموسم في تواريخ الرحلة",
-    "tags": ["string — 3 إلى 5 وسوم قصيرة"]
-  },
-  "flights": [
-    {
-      "id": "string — معرّف فريد بصيغة flight-1",
-      "airline": "string",
-      "from": "string — اسم المطار أو المدينة",
-      "to": "string",
-      "departTime": "string — بصيغة HH:MM",
-      "arriveTime": "string — بصيغة HH:MM",
-      "durationMinutes": "number",
-      "stops": "number — 0 للرحلة المباشرة",
-      "cabin": "economy | premium | business",
-      "price": "number",
-      "currency": "string",
-      "priceNote": "string — سبب كون هذا الخيار الأوفر أو الأنسب",
-      "bookingUrl": "string — رابط بحث صالح (مثال: https://www.google.com/travel/flights?q=...)",
-      "imageQuery": "string — 2-3 كلمات إنجليزية لوصف الصورة"
-    }
-  ],
-  "hotels": [
-    {
-      "id": "string — hotel-1",
-      "name": "string",
-      "area": "string — اسم الحي أو المنطقة",
-      "rating": "number — من 0 إلى 5 برقم عشري واحد",
-      "pricePerNight": "number",
-      "currency": "string",
-      "highlights": ["string — 3 مزايا قصيرة"],
-      "whyItFits": "string — سطر واحد يربط الفندق بتفضيلات المستخدم",
-      "mapUrl": "string — رابط خرائط جوجل للبحث عن الاسم",
-      "bookingUrl": "string",
-      "imageQuery": "string"
-    }
-  ],
-  "restaurants": [
-    {
-      "id": "string — food-1",
-      "name": "string",
-      "type": "restaurant | cafe | street-food | dessert",
-      "cuisine": "string",
-      "priceLevel": "number — من 1 إلى 4",
-      "mustTry": "string — الطبق أو المشروب الذي يجب تجربته",
-      "area": "string",
-      "isHalalFriendly": "boolean",
-      "mapUrl": "string",
-      "imageQuery": "string"
-    }
-  ],
-  "experiences": [
-    {
-      "id": "string — exp-1",
-      "title": "string",
-      "category": "adventure | culture | nature | nightlife | wellness | family",
-      "durationHours": "number",
-      "price": "number — استخدم 0 للمجاني",
-      "currency": "string",
-      "description": "string — سطران كحد أقصى",
-      "bestTime": "string — مثل: صباحاً قبل التاسعة",
-      "bookingUrl": "string",
-      "imageQuery": "string"
-    }
-  ],
-  "landmarks": [
-    {
-      "id": "string — spot-1",
-      "name": "string",
-      "type": "historic | religious | modern | viewpoint | museum",
-      "entryFee": "number — 0 إذا كان مجانياً",
-      "currency": "string",
-      "suggestedDuration": "string — مثل: ساعة ونصف",
-      "tip": "string — نصيحة عملية لتفادي الزحام أو لأفضل زاوية تصوير",
-      "mapUrl": "string",
-      "imageQuery": "string"
-    }
-  ],
-  "shopping": [
-    {
-      "id": "string — shop-1",
-      "name": "string",
-      "type": "mall | souq | boutique-street | outlet",
-      "knownFor": "string",
-      "priceLevel": "number — من 1 إلى 4",
-      "area": "string",
-      "mapUrl": "string",
-      "imageQuery": "string"
-    }
-  ],
-  "days": [
-    {
-      "day": "number — يبدأ من 1",
-      "title": "string — عنوان اليوم",
-      "theme": "string — كلمتان تصفان طابع اليوم",
-      "blocks": [
-        {
-          "time": "string — HH:MM",
-          "period": "morning | afternoon | evening | night",
-          "title": "string",
-          "description": "string — سطر واحد",
-          "refType": "hotel | flight | restaurant | experience | landmark | shopping | free",
-          "refId": "string — معرّف العنصر المرتبط من القوائم أعلاه، أو نص فارغ للنوع free",
-          "estimatedCost": "number",
-          "transitNote": "string — كيفية الانتقال من النقطة السابقة ومدتها"
-        }
-      ]
-    }
-  ],
-  "budgetBreakdown": {
-    "flights": "number",
-    "stay": "number",
-    "food": "number",
-    "activities": "number",
-    "shopping": "number",
-    "transport": "number"
-  },
-  "practicalTips": ["string — 4 إلى 6 نصائح عملية محددة بالوجهة"]
+"meta":{"title":"عنوان جذاب ≤60 حرفاً","destination":"المدينة والدولة بالعربية","destinationEn":"City, Country بالإنجليزية","summary":"2-3 أسطر","durationDays":0,"currency":"SAR","estimatedTotalCost":0,"bestTimeNote":"ملاحظة طقس/موسم","tags":["3-5 وسوم"]},
+"flights":[{"id":"flight-1","airline":"","from":"","to":"","departTime":"HH:MM","arriveTime":"HH:MM","durationMinutes":0,"stops":0,"cabin":"economy|premium|business","price":0,"currency":"SAR","priceNote":"سبب كونه الأنسب","bookingUrl":"","imageQuery":"english words"}],
+"hotels":[{"id":"hotel-1","name":"","area":"الحي","rating":4.5,"pricePerNight":0,"currency":"SAR","highlights":["","",""],"whyItFits":"سطر يربطه بتفضيلات المسافر","mapUrl":"","bookingUrl":"","imageQuery":"english words"}],
+"restaurants":[{"id":"food-1","name":"","type":"restaurant|cafe|street-food|dessert","cuisine":"","priceLevel":2,"mustTry":"الطبق الأبرز","area":"","isHalalFriendly":true,"mapUrl":"","imageQuery":"english words"}],
+"experiences":[{"id":"exp-1","title":"","category":"adventure|culture|nature|nightlife|wellness|family","durationHours":2,"price":0,"currency":"SAR","description":"سطران كحد أقصى","bestTime":"مثل: صباحاً قبل التاسعة","bookingUrl":"","imageQuery":"english words"}],
+"landmarks":[{"id":"spot-1","name":"","type":"historic|religious|modern|viewpoint|museum","entryFee":0,"currency":"SAR","suggestedDuration":"مثل: ساعة ونصف","tip":"نصيحة زحام أو تصوير","mapUrl":"","imageQuery":"english words"}],
+"shopping":[{"id":"shop-1","name":"","type":"mall|souq|boutique-street|outlet","knownFor":"","priceLevel":2,"area":"","mapUrl":"","imageQuery":"english words"}],
+"days":[{"day":1,"title":"","theme":"كلمتان","blocks":[{"time":"HH:MM","period":"morning|afternoon|evening|night","title":"","description":"سطر واحد","refType":"hotel|flight|restaurant|experience|landmark|shopping|free","refId":"معرّف من القوائم أعلاه أو \"\" للنوع free","estimatedCost":0,"transitNote":"وسيلة الانتقال ومدته"}]}],
+"budgetBreakdown":{"flights":0,"stay":0,"food":0,"activities":0,"shopping":0,"transport":0},
+"practicalTips":["4 نصائح محددة بالوجهة"]
 }`;
 
 /** عدد العناصر المطلوب في كل فئة — مركزي حتى لا يتناثر في الكود. */
+/**
+ * الحصص مضبوطة على ما تُنهيه النماذج المجانية فعلاً دون بتر.
+ * القياس: 23 بطاقة كانت تتجاوز ميزانية التوكنز فيعود JSON مبتوراً؛ هذه
+ * الحصص (17 بطاقة) تكتمل بـ finish_reason=stop على النماذج المعتمدة.
+ */
 export const CARD_QUOTAS = {
-  flights: 3,
-  hotels: 4,
-  restaurants: 5,
-  experiences: 4,
-  landmarks: 4,
-  shopping: 3,
+  flights: 2,
+  hotels: 3,
+  restaurants: 4,
+  experiences: 3,
+  landmarks: 3,
+  shopping: 2,
 } as const;
 
 export function tripPlannerSystemPrompt(): string {
@@ -189,7 +82,7 @@ ${BRAND_PERSONA}
 - استخدم أسماء أماكن **حقيقية ومعروفة** في الوجهة المطلوبة. لا تخترع أسماء فنادق أو مطاعم وهمية.
 - اجعل الأسعار متسقة مع مستوى الميزانية المطلوب ومع الموسم المذكور.
 - وزّع الأيام جغرافياً: اجمع الأنشطة المتقاربة في اليوم نفسه لتقليل التنقل.
-- لكل يوم بين 4 و 6 مقاطع (blocks) تغطي الصباح والظهيرة والمساء.
+- لكل يوم 4 مقاطع (blocks) بالضبط تغطي الصباح والظهيرة والمساء.
 - كل \`refId\` في المقاطع يجب أن يطابق \`id\` موجوداً فعلاً في القوائم، وإلا استخدم النوع "free".
 - \`estimatedTotalCost\` يجب أن يساوي تقريباً مجموع \`budgetBreakdown\`.
 - \`mapUrl\` يُبنى دائماً بالصيغة: https://www.google.com/maps/search/?api=1&query=<الاسم+بالإنجليزية+والمدينة>
@@ -266,8 +159,9 @@ ${BRAND_PERSONA}
 - ابدأ بالإجابة المباشرة في أول سطر، ثم التفاصيل.
 - استخدم قوائم قصيرة بدل الفقرات الطويلة. لا تتجاوز 200 كلمة ما لم يُطلب التوسّع.
 - اذكر أرقاماً تقريبية وأسماء أماكن محددة بدل النصائح العامة.
+- الواجهة تعرض ردك كنص عادي فقط ولا تفسّر رموز Markdown، لذا ممنوع استخدام: \`**نص عريض**\`، \`# عناوين\`، \`> اقتباس\`، أو أسوار الشيفرة \`\`\`. للتمييز استخدم فواصل الأسطر وشرطة "-" في بداية عناصر القائمة فقط.
 - لا تستخدم جداول Markdown (الواجهة لا تعرضها بشكل جيد).
-- إن كان السؤال يستدعي خطة كاملة، لخّص الفكرة في 3 أسطر ثم اقترح صراحة: «أنشئ خطة كاملة من صفحة مخطط الرحلات».
+- إن كان السؤال يستدعي خطة كاملة، لخّص الفكرة في 3 أسطر ثم اقترح صراحة: «أنشئ خطة كاملة من صفحة مخطط الرحلات» (بدون علامات اقتباس أو رموز Markdown حول الجملة).
 
 ### حدود
 - إن لم تكن متأكداً من معلومة قابلة للتغير (سعر تذكرة، شرط تأشيرة، ساعات عمل) فصرّح بذلك في جملة واحدة واطلب التحقق من المصدر الرسمي. لا تختلق أرقاماً قاطعة.
