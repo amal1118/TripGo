@@ -145,7 +145,7 @@ export function ChatPanel() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder="اكتب سؤالك… (Enter للإرسال، Shift+Enter لسطر جديد)"
+            placeholder="اخبرني كيف يمكنني مساعدتك ..."
             className="min-h-[52px] flex-1"
             rows={1}
             disabled={streaming}
@@ -165,8 +165,20 @@ export function ChatPanel() {
   );
 }
 
+/** يزيل رموز Markdown الشائعة (**عريض**، # عناوين، > اقتباس، أسوار الشيفرة) التي قد يُخرجها النموذج رغم التعليمات — الواجهة تعرض نصاً عادياً فقط. */
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/```[a-zA-Z]*\n?/g, '')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/__(.+?)__/g, '$1')
+    .replace(/^\s{0,3}#{1,6}\s+/gm, '')
+    .replace(/^\s{0,3}>\s?/gm, '');
+}
+
 const MessageBubble = React.memo(function MessageBubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === 'user';
+  const content = isUser ? message.content : stripMarkdown(message.content);
 
   return (
     <motion.div
@@ -183,7 +195,7 @@ const MessageBubble = React.memo(function MessageBubble({ message }: { message: 
             : 'rounded-bl-md border border-border bg-secondary/70 whitespace-pre-wrap',
         )}
       >
-        {message.content || <Loader2 className="size-4 animate-spin text-primary" />}
+        {content || <Loader2 className="size-4 animate-spin text-primary" />}
       </div>
     </motion.div>
   );

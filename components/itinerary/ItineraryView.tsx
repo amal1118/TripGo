@@ -26,7 +26,9 @@ import {
   LandmarkCard, ShoppingCard,
 } from './cards';
 import { DaysTimeline, EmptyTab, type BlockRef } from './DaysTimeline';
+import { ScreenLogo } from '@/components/shell/ScreenLogo';
 import { getCardImage } from '@/lib/images';
+import { TripDestinationContext } from '@/components/glass/CardImage';
 import { unsplash } from '@/lib/destinations';
 import { formatPrice, daysAr, cn } from '@/lib/utils';
 import type { Itinerary } from '@/types/trip';
@@ -65,16 +67,18 @@ export function ItineraryView({
    */
   const lookup = React.useMemo(() => {
     const map = new Map<string, BlockRef>();
-    const put = (id: string, name: string, category: BlockRef['category'], imageQuery: string) => {
-      if (id) map.set(id, { name, category, imageQuery });
+    // البذرة = ترتيب العنصر داخل فئته، وهي نفسها التي تستخدمها البطاقة —
+    // فتظهر الصورة نفسها في البطاقة وفي شريط اليوم بلا تناقض.
+    const put = (id: string, name: string, category: BlockRef['category'], imageQuery: string, seed: number) => {
+      if (id) map.set(id, { name, category, imageQuery, seed });
     };
-    itinerary.hotels.forEach((h) => put(h.id, h.name, 'hotels', h.imageQuery));
+    itinerary.hotels.forEach((h, i) => put(h.id, h.name, 'hotels', h.imageQuery, i));
     // فاصل محايد بدل سهم: السهم ينقلب معناه داخل نص عربي ثنائي الاتجاه
-    itinerary.flights.forEach((f) => put(f.id, `${f.airline} — ${f.from} إلى ${f.to}`, 'flights', f.imageQuery));
-    itinerary.restaurants.forEach((r) => put(r.id, r.name, 'restaurants', r.imageQuery));
-    itinerary.experiences.forEach((e) => put(e.id, e.title, 'experiences', e.imageQuery));
-    itinerary.landmarks.forEach((l) => put(l.id, l.name, 'landmarks', l.imageQuery));
-    itinerary.shopping.forEach((s) => put(s.id, s.name, 'shopping', s.imageQuery));
+    itinerary.flights.forEach((f, i) => put(f.id, `${f.airline} — ${f.from} إلى ${f.to}`, 'flights', f.imageQuery, i));
+    itinerary.restaurants.forEach((r, i) => put(r.id, r.name, 'restaurants', r.imageQuery, i));
+    itinerary.experiences.forEach((e, i) => put(e.id, e.title, 'experiences', e.imageQuery, i));
+    itinerary.landmarks.forEach((l, i) => put(l.id, l.name, 'landmarks', l.imageQuery, i));
+    itinerary.shopping.forEach((s, i) => put(s.id, s.name, 'shopping', s.imageQuery, i));
     return map;
   }, [itinerary]);
 
@@ -94,12 +98,16 @@ export function ItineraryView({
     } catch { /* ألغى المستخدم */ }
   }, [tripId, meta.title]);
 
+  /** اسم الوجهة كما سيُطابَق بكتالوج الوجهات لاختيار صور المكان الحقيقي. */
+  const destinationKey = meta.destinationEn || meta.destination;
+
   return (
+    <TripDestinationContext.Provider value={destinationKey}>
     <div className="canvas relative min-h-dvh">
       {/* ================= الصورة العلوية ================= */}
       <div className="relative h-[46svh] min-h-[300px] w-full sm:h-[52svh]">
         <Image
-          src={getCardImage('landmarks', meta.destinationEn || meta.destination, { w: 1400, h: 900 })}
+          src={getCardImage('landmarks', destinationKey, { w: 1400, h: 900, destination: destinationKey })}
           alt={meta.destination}
           fill
           priority
@@ -107,6 +115,8 @@ export function ItineraryView({
           className="object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-neutral-950/85 via-neutral-950/15 to-neutral-950/45" />
+
+        <ScreenLogo className="absolute inset-x-0 top-[max(1rem,env(safe-area-inset-top))] z-10" />
 
         {/* أزرار عائمة */}
         <div className="absolute inset-x-4 top-[max(1rem,env(safe-area-inset-top))] z-10 flex items-center justify-between sm:inset-x-6">
@@ -370,6 +380,7 @@ export function ItineraryView({
         </div>
       </div>
     </div>
+    </TripDestinationContext.Provider>
   );
 }
 

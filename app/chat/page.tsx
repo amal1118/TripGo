@@ -15,7 +15,7 @@ export default async function ChatPage() {
   return (
     <AppScreen className="flex min-h-dvh flex-col">
       <ScreenHeader
-        name={profile?.full_name ?? user?.user_metadata?.full_name ?? 'مسافر'}
+        name={profile?.full_name ?? user?.user_metadata?.full_name ?? 'المساعد الذكي'}
         avatarUrl={profile?.avatar_url ?? user?.user_metadata?.avatar_url ?? null}
         greeting="رفيقك في السفر"
       />

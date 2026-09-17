@@ -49,7 +49,7 @@ export default async function DashboardPage() {
 
       {/* المساعد */}
       <Link href="/chat" className="card-warm card-warm-hover mb-8 flex items-center gap-4 p-4">
-        <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-primary/12">
+        <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-primary/10">
           <Sparkles className="size-5 text-primary" />
         </span>
         <div className="min-w-0 flex-1">

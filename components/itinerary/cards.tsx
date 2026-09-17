@@ -14,7 +14,7 @@ import {
   Sunrise, Sun, Sunset, Moon,
 } from 'lucide-react';
 import { GlassCard } from '@/components/glass/GlassCard';
-import { CardImage } from '@/components/glass/CardImage';
+import { CardImage, TripDestinationContext } from '@/components/glass/CardImage';
 import { CardActions } from '@/components/glass/CardActions';
 import { Badge } from '@/components/ui/badge';
 import { formatPrice, formatDuration, priceLevelLabel, hoursAr, cn } from '@/lib/utils';
@@ -51,7 +51,7 @@ export const HotelCard = React.memo(function HotelCard({ item, index }: { item: 
   return (
     <GlassCard index={index} tilt className="flex flex-col">
       <div className="relative h-48">
-        <CardImage category="hotels" query={item.imageQuery || item.name} alt={item.name} className="absolute inset-0" />
+        <CardImage category="hotels" query={item.imageQuery || item.name} alt={item.name} seed={index} className="absolute inset-0" />
         <CornerIcon icon={BadgeCheck} />
         <div className="absolute bottom-3 start-4 end-4 z-10">
           <div className="mb-1 flex items-center gap-1.5">
@@ -148,7 +148,7 @@ export const RestaurantCard = React.memo(function RestaurantCard({ item, index }
   return (
     <GlassCard index={index} className="flex flex-col overflow-hidden">
       <div className="relative h-36">
-        <CardImage category="restaurants" query={item.imageQuery || item.name} alt={item.name} className="absolute inset-0" />
+        <CardImage category="restaurants" query={item.imageQuery || item.name} alt={item.name} seed={index} className="absolute inset-0" />
         <CornerIcon icon={Utensils} />
         <div className="absolute bottom-3 start-4 end-4 z-10 flex items-center gap-2">
           <Badge variant="glass" className="text-white">{FOOD_TYPE_AR[item.type]}</Badge>
@@ -182,7 +182,7 @@ export const ExperienceCard = React.memo(function ExperienceCard({ item, index }
   return (
     <GlassCard index={index} tilt className="flex flex-col">
       <div className="relative h-44">
-        <CardImage category="experiences" query={item.imageQuery || item.title} alt={item.title} className="absolute inset-0" />
+        <CardImage category="experiences" query={item.imageQuery || item.title} alt={item.title} seed={index} className="absolute inset-0" />
         <CornerIcon icon={Ticket} />
         <div className="absolute bottom-3 start-4 end-4 z-10">
           <Badge variant="glass" className="mb-1.5 text-white">{EXP_CAT_AR[item.category]}</Badge>
@@ -217,7 +217,7 @@ export const LandmarkCard = React.memo(function LandmarkCard({ item, index }: { 
   return (
     <GlassCard index={index} className="flex flex-col">
       <div className="relative h-40">
-        <CardImage category="landmarks" query={item.imageQuery || item.name} alt={item.name} className="absolute inset-0" />
+        <CardImage category="landmarks" query={item.imageQuery || item.name} alt={item.name} seed={index} className="absolute inset-0" />
         <CornerIcon icon={LandmarkIcon} />
         <div className="absolute bottom-3 start-4 end-4 z-10">
           <Badge variant="glass" className="mb-1.5 text-white">{LANDMARK_AR[item.type]}</Badge>
@@ -251,7 +251,7 @@ export const ShoppingCard = React.memo(function ShoppingCard({ item, index }: { 
   return (
     <GlassCard index={index} className="flex flex-col">
       <div className="relative h-36">
-        <CardImage category="shopping" query={item.imageQuery || item.name} alt={item.name} className="absolute inset-0" />
+        <CardImage category="shopping" query={item.imageQuery || item.name} alt={item.name} seed={index} className="absolute inset-0" />
         <CornerIcon icon={ShoppingBag} />
       </div>
 
@@ -272,10 +272,10 @@ export const ShoppingCard = React.memo(function ShoppingCard({ item, index }: { 
 /* ---------- مقطع في مسار اليوم ---------- */
 
 const PERIODS = {
-  morning:   { label: 'صباحاً', icon: Sunrise, tone: 'text-amber-600  dark:text-amber-400',  chip: 'bg-amber-500/12' },
-  afternoon: { label: 'ظهراً',  icon: Sun,     tone: 'text-orange-600 dark:text-orange-400', chip: 'bg-orange-500/12' },
-  evening:   { label: 'مساءً',  icon: Sunset,  tone: 'text-rose-600   dark:text-rose-400',   chip: 'bg-rose-500/12' },
-  night:     { label: 'ليلاً',  icon: Moon,    tone: 'text-indigo-600 dark:text-indigo-400', chip: 'bg-indigo-500/12' },
+  morning:   { label: 'صباحاً', icon: Sunrise, tone: 'text-amber-600  dark:text-amber-400',  chip: 'bg-amber-500/10' },
+  afternoon: { label: 'ظهراً',  icon: Sun,     tone: 'text-orange-600 dark:text-orange-400', chip: 'bg-orange-500/10' },
+  evening:   { label: 'مساءً',  icon: Sunset,  tone: 'text-rose-600   dark:text-rose-400',   chip: 'bg-rose-500/10' },
+  night:     { label: 'ليلاً',  icon: Moon,    tone: 'text-indigo-600 dark:text-indigo-400', chip: 'bg-indigo-500/10' },
 } as const;
 
 const REF_LABELS: Record<Exclude<DayBlock['refType'], 'free'>, string> = {
@@ -284,12 +284,15 @@ const REF_LABELS: Record<Exclude<DayBlock['refType'], 'free'>, string> = {
 };
 
 /** صورة مصغّرة للمقطع — تسقط إلى بديل حتمي عند فشل التحميل. */
-const Thumb = React.memo(function Thumb({ category, query, alt }: { category: CardCategory; query: string; alt: string }) {
+const Thumb = React.memo(function Thumb(
+  { category, query, alt, seed = 0 }: { category: CardCategory; query: string; alt: string; seed?: number },
+) {
   const [failed, setFailed] = React.useState(false);
+  const destination = React.useContext(TripDestinationContext);
   return (
     <div className="relative size-[68px] shrink-0 overflow-hidden rounded-2xl bg-muted ring-1 ring-black/5 dark:ring-white/10">
       <Image
-        src={failed ? getFallbackImage(query, 160, 160) : getCardImage(category, query, { w: 160, h: 160 })}
+        src={failed ? getFallbackImage(query, 160, 160) : getCardImage(category, query, { w: 160, h: 160, seed, destination })}
         alt={alt}
         fill
         sizes="68px"
@@ -306,7 +309,7 @@ export const TimelineBlock = React.memo(function TimelineBlock({
 }: {
   time: string; period?: DayBlock['period']; title: string; description: string;
   transitNote?: string; cost: number; currency: string; isLast: boolean;
-  image?: { category: CardCategory; query: string } | null;
+  image?: { category: CardCategory; query: string; seed?: number } | null;
   refType?: DayBlock['refType'];
 }) {
   const p = PERIODS[period] ?? PERIODS.morning;
@@ -331,7 +334,7 @@ export const TimelineBlock = React.memo(function TimelineBlock({
       {/* البطاقة */}
       <div className="glass glass-sheen relative flex-1 rounded-2xl p-3.5 transition-shadow duration-300 hover:shadow-card sm:p-4">
         <div className="flex gap-3.5">
-          {image && <Thumb category={image.category} query={image.query} alt={title} />}
+          {image && <Thumb category={image.category} query={image.query} seed={image.seed} alt={title} />}
 
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-2.5">

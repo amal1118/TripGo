@@ -20,6 +20,8 @@ import { formatPrice, activitiesAr, cn } from '@/lib/utils';
 import type { TripDay, CardCategory, DayBlock } from '@/types/trip';
 
 export interface BlockRef {
+  /** ترتيب العنصر داخل فئته — تستخدمه الصورة المصغّرة لتطابق صورة البطاقة. */
+  seed?: number;
   name: string;
   category: CardCategory;
   imageQuery: string;
@@ -198,7 +200,7 @@ function Block({
       currency={currency}
       isLast={isLast}
       refType={block.refType}
-      image={ref ? { category: ref.category, query: ref.imageQuery || ref.name } : null}
+      image={ref ? { category: ref.category, query: ref.imageQuery || ref.name, seed: ref.seed ?? 0 } : null}
     />
   );
 }
