@@ -40,6 +40,48 @@ export const FREE_MODELS = {
   ],
 } as const;
 
+/**
+ * شبكة الأمان المدفوعة — تُستدعى فقط بعد فشل كل النماذج المجانية.
+ *
+ * لماذا وُجدت: النماذج المجانية تفشل عشوائياً (رد فارغ، JSON مبتور، تعليق
+ * عند المزوّد) وتخضع لحصة يومية. بلا بديل مدفوع كان المستخدم يرى
+ * «النماذج المجانية غير مستقرة — أعد المحاولة» بلا مخرج. ولأن الاستدعاء
+ * لا يحدث إلا عند الفشل، التكلفة الفعلية تبقى قريبة من الصفر.
+ *
+ * ⚠️ الاختيار مقيس (سبتمبر 2026) لا مأخوذ من جدول الأسعار: الأرخص على
+ * الورق (qwen3.7-flash، deepseek-v4-flash، ling-3.0-flash، mistral-nemo)
+ * يعلّق حتى انتهاء المهلة على توجيه الخطة الطويل، فلا يصلح شبكةَ أمان مهما
+ * رخص. gemini-2.5-flash-lite أنهى 5/5 محاولات في أقل من 1.2s بـ JSON يجتاز
+ * المخطط، بتكلفة ~0.0022$ للخطة الواحدة.
+ */
+export const PAID_MODELS = {
+  /**
+   * مكرّر عمداً — لنفس سبب تكرار النموذج المجاني: الفشل المتبقي عابر
+   * (خطة لا تحقّق الحد الأدنى مرة كل ~8 محاولات)، وإعادة المحاولة على
+   * النموذج نفسه ترفع النجاح إلى 8/8 بتكلفة ~0.002$ تُدفع عند الفشل فقط.
+   */
+  planner: [
+    process.env.OPENROUTER_MODEL_PLANNER_PAID || 'google/gemini-2.5-flash-lite',
+    process.env.OPENROUTER_MODEL_PLANNER_PAID || 'google/gemini-2.5-flash-lite',
+  ],
+  chat: [
+    process.env.OPENROUTER_MODEL_CHAT_PAID || 'google/gemini-2.5-flash-lite',
+  ],
+} as const;
+
+/**
+ * البديل المدفوع مُفعّل افتراضياً ويُوقَف بـ OPENROUTER_PAID_FALLBACK=off.
+ * الإيقاف مفيد في بيئة بلا رصيد: بدونه تُستهلك محاولة إضافية ترد 402.
+ */
+export function paidFallbackEnabled(): boolean {
+  return process.env.OPENROUTER_PAID_FALLBACK?.trim().toLowerCase() !== 'off';
+}
+
+/** قائمة البدائل المدفوعة الفعلية لمهمة ما (فارغة عند الإيقاف). */
+export function paidModelsFor(task: keyof typeof PAID_MODELS): readonly string[] {
+  return paidFallbackEnabled() ? PAID_MODELS[task].filter(Boolean) : [];
+}
+
 export interface LLMMessage { role: 'system' | 'user' | 'assistant'; content: string }
 
 interface CompletionOptions {
@@ -52,6 +94,15 @@ interface CompletionOptions {
   /** مهلة قصوى لكل نموذج على حدة — تمنع نموذجاً بطيئاً من ابتلاع الميزانية كلها. */
   perAttemptTimeoutMs?: number;
   /**
+   * مهلة خاصة بالمحاولة المدفوعة.
+   *
+   * لا ترث مهلة النماذج المجانية عمداً: تلك مضبوطة على ~15s لأن المجاني إما
+   * يردّ خلال ثوانٍ أو لا يعود أبداً، فقطعُه سريعاً يوفّر محاولة أخرى. أما
+   * المدفوع فهو المحاولة الأخيرة — لا شيء بعده — وقياسه يتراوح بين ثانية
+   * و~15s، فقطعُه عند 15s يُسقط الإنقاذ في اللحظة التي كاد ينجح فيها.
+   */
+  paidTimeoutMs?: number;
+  /**
    * سقف عدد الطلبات المرسلة فعلاً إلى OpenRouter.
    *
    * مهم على الحساب المجاني: الحدّ 50 طلباً للنماذج المجانية يومياً لكل
@@ -61,6 +112,24 @@ interface CompletionOptions {
   maxAttempts?: number;
   /** تعطيل شبكة أمان الاكتشاف — تُضاعف استهلاك الحصة اليومية. */
   discover?: boolean;
+  /**
+   * نماذج مدفوعة تُجرَّب بعد فشل كل ما في `models`.
+   *
+   * لا تخضع لـ `maxAttempts` (وهو سقف موضوع لحماية الحصة اليومية المجانية،
+   * ولا معنى له لطلب مدفوع)، ولا للحصة اليومية أصلاً — لذلك تُجرَّب أيضاً
+   * عند نفاد الحصة، وهي الحالة الوحيدة التي كان المستخدم يعلق فيها بلا مخرج.
+   */
+  paidFallback?: readonly string[];
+  /**
+   * تحقّق من صلاحية المحتوى قبل قبوله.
+   *
+   * بدونه كان «النجاح» يعني «JSON قابل للتحليل» فقط، بينما الخطة تمرّ بعد
+   * ذلك على مخطط zod في الـ route. القياس (سبتمبر 2026) أن النموذج المجاني
+   * يردّ JSON سليم الشكل لكنه ناقص الحقول في معظم المحاولات — فتنتهي سلسلة
+   * البدائل بنجاحٍ ظاهري، ثم يفشل zod بلا أي نموذج بديل يُجرَّب.
+   * تمرير `validate` يجعل فشل المخطط محاولةً فاشلة تُكمل السلسلة.
+   */
+  validate?: (content: string) => boolean;
   /**
    * إيقاف «التفكير» الداخلي للنموذج.
    *
@@ -206,17 +275,21 @@ export async function complete({
   maxAttempts = Number.POSITIVE_INFINITY,
   discover = true,
   noReasoning = false,
+  paidFallback = [],
+  paidTimeoutMs = 45_000,
+  validate,
   signal,
 }: CompletionOptions): Promise<{ content: string; model: string }> {
   let lastError: unknown;
   const tried = new Set<string>();
-  let attempts = 0;
+  /** يصبح صحيحاً عند نفاد الحصة المجانية: لا فائدة من نموذج مجاني آخر. */
+  let freeQuotaGone = false;
 
-  const attempt = async (model: string): Promise<{ content: string; model: string } | null> => {
+  const attempt = async (model: string, timeoutMs: number): Promise<{ content: string; model: string } | null> => {
     const res = await fetch(OPENROUTER_URL, {
       method: 'POST',
       headers: headers(),
-      signal: attemptSignal(signal, perAttemptTimeoutMs),
+      signal: attemptSignal(signal, timeoutMs),
       body: JSON.stringify({
         model,
         messages,
@@ -271,6 +344,16 @@ export async function complete({
       return null;
     }
 
+    /**
+     * فشل التحقق ليس خطأ شبكة: النموذج ردّ، لكن ردّه غير صالح للعرض.
+     * نعامله كفشل قابل للتجاوز حتى يأخذ النموذج التالي (أو المدفوع) فرصته.
+     */
+    if (validate && !validate(content)) {
+      lastError = new OpenRouterError(`رد غير مطابق للمخطط من ${model}`, 502, model);
+      console.warn('[openrouter] invalid', model, `${content.length} chars`);
+      return null;
+    }
+
     return { content, model };
   };
 
@@ -278,16 +361,23 @@ export async function complete({
    * @param allowRepeat القائمة الصريحة قد تُكرّر النموذج الأفضل عمداً: أعطال
    *   النماذج المجانية عابرة في الغالب (رد فارغ عشوائي بلا سبب)، فإعادة
    *   المحاولة على النموذج الأقوى أجدى من الهبوط إلى نموذج أضعف.
+   * @param budget سقف محاولات خاص بهذه القائمة. القوائم المجانية تتقاسم
+   *   `maxAttempts` حمايةً للحصة اليومية؛ أما القائمة المدفوعة فلها سقفها
+   *   الخاص لأنها لا تمسّ تلك الحصة.
    */
-  const run = async (candidates: readonly string[], allowRepeat = false) => {
+  const run = async (
+    candidates: readonly string[],
+    { allowRepeat = false, budget = Number.POSITIVE_INFINITY, timeoutMs = perAttemptTimeoutMs } = {},
+  ) => {
+    let used = 0;
     for (const model of candidates) {
       if (!model) continue;
       if (!allowRepeat && tried.has(model)) continue;
-      if (attempts >= maxAttempts) break;
+      if (used >= budget) break;
       tried.add(model);
-      attempts++;
+      used++;
       try {
-        const ok = await attempt(model);
+        const ok = await attempt(model, timeoutMs);
         if (ok) return ok;
       } catch (err) {
         // إجهاض المستدعي (انتهاء مهلة الطلب كله) نهائي؛ أما انتهاء مهلة
@@ -295,8 +385,18 @@ export async function complete({
         if (signal?.aborted) throw err;
         // عطل إعداد أو مفتاح مرفوض: النموذج التالي سيفشل بالضبط كما فشل هذا.
         if (err instanceof OpenRouterError && (err.configError || err.status === 401 || err.status === 403)) throw err;
+        /**
+         * نفاد الحصة اليومية يخصّ الحساب كله لا النموذج: كل نموذج مجاني تالٍ
+         * سيردّ 429 نفسه. نتوقف عن المجاني ونترك البديل المدفوع يكمل — فهو
+         * لا يخضع لتلك الحصة.
+         */
+        if (err instanceof OpenRouterError && err.quotaExhausted) {
+          freeQuotaGone = true;
+          lastError = err;
+          break;
+        }
         if (err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError')) {
-          console.warn('[openrouter] timeout', model, `${perAttemptTimeoutMs}ms`);
+          console.warn('[openrouter] timeout', model, `${timeoutMs}ms`);
         }
         lastError = err;
       }
@@ -304,16 +404,29 @@ export async function complete({
     return null;
   };
 
-  const direct = await run(models, true);
+  const usablePaid = paidFallback.filter(Boolean);
+
+  const direct = await run(models, { allowRepeat: true, budget: maxAttempts });
   if (direct) return direct;
 
-  // شبكة أمان: كل النماذج المُعرَّفة فشلت (غالباً سُحبت من الكتالوج) —
-  // نجرّب ما هو متاح مجاناً الآن فعلياً.
-  const discovered = discover && attempts < maxAttempts ? await discoverFreeModels(json) : [];
-  if (discovered.length) {
-    console.warn('[openrouter] falling back to discovered free models', discovered.slice(0, 4));
-    const rescue = await run(discovered.slice(0, 4));
-    if (rescue) return rescue;
+  // شبكة أمان أولى (مجانية): النماذج المُعرَّفة قد تكون سُحبت من الكتالوج —
+  // نجرّب ما هو متاح مجاناً الآن فعلياً. تُتخطّى عند نفاد الحصة لأن كل
+  // نموذج مجاني سيردّ 429 نفسه.
+  if (discover && !freeQuotaGone) {
+    const discovered = await discoverFreeModels(json);
+    if (discovered.length) {
+      console.warn('[openrouter] falling back to discovered free models', discovered.slice(0, 4));
+      const rescue = await run(discovered.slice(0, 4), { budget: Math.max(0, maxAttempts - tried.size) });
+      if (rescue) return rescue;
+    }
+  }
+
+  // شبكة أمان أخيرة (مدفوعة): كل المجاني فشل أو نفدت الحصة. هنا فقط تُصرف
+  // نقود — وهي الحالة التي كان المستخدم يرى فيها رسالة فشل بلا مخرج.
+  if (usablePaid.length) {
+    console.warn('[openrouter] falling back to paid models', usablePaid, freeQuotaGone ? '(free quota exhausted)' : '(free models failed)');
+    const paid = await run(usablePaid, { allowRepeat: true, budget: usablePaid.length, timeoutMs: paidTimeoutMs });
+    if (paid) return paid;
   }
 
   throw lastError instanceof Error
@@ -327,6 +440,7 @@ export async function streamComplete({
   models = FREE_MODELS.chat,
   temperature = 0.7,
   maxTokens = 2048,
+  paidFallback = [],
   signal,
 }: CompletionOptions): Promise<ReadableStream<Uint8Array>> {
   const open = async (model: string) => {
@@ -359,6 +473,15 @@ export async function streamComplete({
     for (const model of (await discoverFreeModels(false)).slice(0, 3)) {
       if (tried.has(model)) continue;
       tried.add(model);
+      res = await open(model);
+      if (res) break;
+    }
+  }
+
+  // شبكة أمان مدفوعة — كما في complete()، تُستدعى فقط بعد فشل كل المجاني.
+  if (!res) {
+    for (const model of paidFallback.filter(Boolean)) {
+      console.warn('[openrouter] stream falling back to paid model', model);
       res = await open(model);
       if (res) break;
     }
@@ -407,11 +530,28 @@ export function extractJson<T = unknown>(raw: string): T {
   if (fence) text = fence[1].trim();
 
   const start = text.indexOf('{');
-  const end = text.lastIndexOf('}');
-  if (start === -1 || end === -1 || end <= start) {
+  if (start === -1) {
     throw new OpenRouterError('لم يُرجع النموذج JSON صالحاً', 502);
   }
-  text = text.slice(start, end + 1);
+
+  /**
+   * نهاية الكائن الجذر تُحسب بموازنة الأقواس لا بـ lastIndexOf('}').
+   *
+   * مقيس: gemini-2.5-flash-lite يُنهي الخطة أحياناً بقوس إغلاق زائد
+   * (`...]}\n}`)، وlastIndexOf كان يلتقط الزائد فيفشل JSON.parse على ردٍّ
+   * سليم تماماً. الموازنة تقصّ عند الإغلاق الحقيقي وتتجاهل ما بعده — وهي
+   * تُصلح أيضاً أي ثرثرة يكتبها النموذج بعد الكائن.
+   */
+  const end = balancedEnd(text, start);
+  if (end === -1) {
+    // لم يُغلق الكائن أصلاً (رد مبتور) — نترك الأمر لمنقذ البتر أدناه.
+    const closed = closeTruncatedJson(text);
+    if (closed) {
+      try { return JSON.parse(closed) as T; } catch { /* نُكمل للخطأ الموحّد */ }
+    }
+    throw new OpenRouterError('لم يُرجع النموذج JSON صالحاً', 502);
+  }
+  text = text.slice(start, end);
 
   try {
     return JSON.parse(text) as T;
@@ -431,6 +571,31 @@ export function extractJson<T = unknown>(raw: string): T {
       throw new OpenRouterError('تعذّر تحليل JSON القادم من النموذج', 502);
     }
   }
+}
+
+/**
+ * يُرجع موضع نهاية الكائن الجذر (بعد قوس الإغلاق المقابل) أو -1 إن لم يُغلق.
+ * يحترم النصوص وعلامات الهروب حتى لا يُحسب قوس داخل نصٍّ كقوس بنيوي.
+ */
+function balancedEnd(text: string, start: number): number {
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (escaped) { escaped = false; continue; }
+    if (ch === '\\') { escaped = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+
+    if (ch === '{') depth++;
+    else if (ch === '}') {
+      depth--;
+      if (depth === 0) return i + 1;
+    }
+  }
+  return -1;
 }
 
 /**

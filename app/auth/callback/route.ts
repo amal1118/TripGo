@@ -1,5 +1,6 @@
 /** OAuth 2.0 callback — تبديل الكود بجلسة ثم التوجيه. */
 import { NextResponse } from 'next/server';
+import type { EmailOtpType } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
 import { getSiteUrl } from '@/lib/site-url';
 
@@ -42,16 +43,36 @@ export async function GET(request: Request) {
     return toLogin(origin, providerError, searchParams.get('error_description'));
   }
 
-  const code = searchParams.get('code');
-  if (!code) return toLogin(origin, 'missing_code');
-
   const supabase = createClient();
-  const { error } = await supabase.auth.exchangeCodeForSession(code);
-  if (error) {
-    // كود مُستهلَك مسبقاً: نداء ثانٍ على هذا الرابط نفسه (تحديث بالسحب على
-    // الجوال، أو متصفح داخل تطبيق يُسلّم الرابط للمتصفح الافتراضي).
-    const reused = /expired|invalid|used/i.test(error.message);
-    return toLogin(origin, reused ? 'reused_code' : 'exchange_failed', error.message);
+  const code = searchParams.get('code');
+  const tokenHash = searchParams.get('token_hash');
+  const otpType = searchParams.get('type') as EmailOtpType | null;
+
+  /**
+   * مساران يصلان إلى هنا:
+   *
+   * 1) `token_hash` — رابط البريد. يُتحقق منه بلا PKCE، أي **يعمل من أي
+   *    متصفح**. هذا مقصود: على الجوال يفتح تطبيق Gmail الرابطَ في متصفحه
+   *    الداخلي لا في Safari الذي طلب الرابط، فلا يجد ملف تعريف الارتباط
+   *    `code_verifier` ويفشل تبادل الكود. التحقق بالـ hash يتجاوز ذلك.
+   * 2) `code` — مسار OAuth (PKCE). يلزم أن يُفتح في المتصفح نفسه.
+   */
+  if (tokenHash && otpType) {
+    const { error } = await supabase.auth.verifyOtp({ type: otpType, token_hash: tokenHash });
+    if (error) {
+      const stale = /expired|invalid/i.test(error.message);
+      return toLogin(origin, stale ? 'link_expired' : 'verify_failed', error.message);
+    }
+  } else if (code) {
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) {
+      // كود مُستهلَك مسبقاً: نداء ثانٍ على هذا الرابط نفسه (تحديث بالسحب على
+      // الجوال، أو متصفح داخل تطبيق يُسلّم الرابط للمتصفح الافتراضي).
+      const reused = /expired|invalid|used/i.test(error.message);
+      return toLogin(origin, reused ? 'reused_code' : 'exchange_failed', error.message);
+    }
+  } else {
+    return toLogin(origin, 'missing_code');
   }
 
   // أول دخول؟ وجّهه لإعداد التفضيلات

@@ -14,10 +14,11 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
+import { toast } from 'sonner';
 import {
-  ChevronRight, Heart, Share2, Check, Star, MapPin, Wallet, Lightbulb,
+  ChevronRight, Share2, Check, Star, MapPin, Wallet, Lightbulb,
   CalendarRange, Hotel as HotelIcon, Plane, Utensils, Ticket,
-  Landmark as LandmarkIcon, ShoppingBag, Bookmark,
+  Landmark as LandmarkIcon, ShoppingBag, Bookmark, BookmarkCheck, Loader2,
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -27,10 +28,9 @@ import {
 } from './cards';
 import { DaysTimeline, EmptyTab, type BlockRef } from './DaysTimeline';
 import { ScreenLogo } from '@/components/shell/ScreenLogo';
-import { getCardImage } from '@/lib/images';
+import { getCoverImage, getFallbackImage, hotelSearchUrl, tripDestinationKey } from '@/lib/images';
 import { TripDestinationContext } from '@/components/glass/CardImage';
-import { unsplash } from '@/lib/destinations';
-import { formatPrice, daysAr, cn } from '@/lib/utils';
+import { formatPrice, daysAr, activitiesAr, cn, toErrorMessage } from '@/lib/utils';
 import type { Itinerary } from '@/types/trip';
 
 const BUDGET_LABELS: Record<keyof Itinerary['budgetBreakdown'], string> = {
@@ -48,18 +48,32 @@ const STATS = [
   { key: 'landmarks',   label: 'معالم',   icon: LandmarkIcon },
 ] as const;
 
-/** صور رفاق الرحلة — عنصر بصري من مرجع التصميم. */
-const COMPANIONS = ['photo-1507003211169-0a1dd7228f2d', 'photo-1494790108377-be9c29b29330', 'photo-1500648767791-00dcc994a43e'];
-
 export function ItineraryView({
-  itinerary, tripId, unsaved = false,
+  itinerary, tripId, coverImage,
 }: {
-  itinerary: Itinerary; tripId?: string; unsaved?: boolean;
+  itinerary: Itinerary;
+  /** وجوده يعني أن الخطة محفوظة؛ غيابه يُظهر شريط الحفظ. */
+  tripId?: string;
+  /** الغلاف المحفوظ في Supabase — يضمن تطابق الشاشة مع بطاقة «رحلاتي». */
+  coverImage?: string | null;
 }) {
   const router = useRouter();
   const { meta, days, budgetBreakdown, practicalTips } = itinerary;
-  const [saved, setSaved] = React.useState(!unsaved);
+  const [savedId, setSavedId] = React.useState<string | null>(tripId ?? null);
+  const [saving, setSaving] = React.useState(false);
   const [copied, setCopied] = React.useState(false);
+  const [heroFailed, setHeroFailed] = React.useState(false);
+
+  /**
+   * تقييم الرحلة = متوسط تقييمات الفنادق المقترحة فيها. كان الرقم 4.8
+   * مكتوباً في الكود لكل خطة — نجمة لا تقيس شيئاً. ويختفي كلياً إن لم
+   * تتضمّن الخطة فنادق بدل عرض قيمة مُختلقة.
+   */
+  const rating = React.useMemo(() => {
+    const rated = itinerary.hotels.filter((h) => h.rating > 0);
+    if (!rated.length) return null;
+    return rated.reduce((sum, h) => sum + h.rating, 0) / rated.length;
+  }, [itinerary.hotels]);
 
   /**
    * فهرس refId → العنصر الأصلي. يحمل الفئة واستعلام الصورة أيضاً، فمقاطع
@@ -69,16 +83,21 @@ export function ItineraryView({
     const map = new Map<string, BlockRef>();
     // البذرة = ترتيب العنصر داخل فئته، وهي نفسها التي تستخدمها البطاقة —
     // فتظهر الصورة نفسها في البطاقة وفي شريط اليوم بلا تناقض.
-    const put = (id: string, name: string, category: BlockRef['category'], imageQuery: string, seed: number) => {
-      if (id) map.set(id, { name, category, imageQuery, seed });
+    // imageUrl يُمرَّر أيضاً حتى تعرض الصورة المصغّرة في اليوم نفس صورة
+    // البطاقة بالضبط، لا صورةً أخرى من المجموعة العامة.
+    const put = (
+      id: string, name: string, category: BlockRef['category'],
+      imageQuery: string, imageUrl: string, seed: number,
+    ) => {
+      if (id) map.set(id, { name, category, imageQuery, imageUrl, seed });
     };
-    itinerary.hotels.forEach((h, i) => put(h.id, h.name, 'hotels', h.imageQuery, i));
+    itinerary.hotels.forEach((h, i) => put(h.id, h.name, 'hotels', h.imageQuery, h.imageUrl, i));
     // فاصل محايد بدل سهم: السهم ينقلب معناه داخل نص عربي ثنائي الاتجاه
-    itinerary.flights.forEach((f, i) => put(f.id, `${f.airline} — ${f.from} إلى ${f.to}`, 'flights', f.imageQuery, i));
-    itinerary.restaurants.forEach((r, i) => put(r.id, r.name, 'restaurants', r.imageQuery, i));
-    itinerary.experiences.forEach((e, i) => put(e.id, e.title, 'experiences', e.imageQuery, i));
-    itinerary.landmarks.forEach((l, i) => put(l.id, l.name, 'landmarks', l.imageQuery, i));
-    itinerary.shopping.forEach((s, i) => put(s.id, s.name, 'shopping', s.imageQuery, i));
+    itinerary.flights.forEach((f, i) => put(f.id, `${f.airline} — ${f.from} إلى ${f.to}`, 'flights', f.imageQuery, f.imageUrl, i));
+    itinerary.restaurants.forEach((r, i) => put(r.id, r.name, 'restaurants', r.imageQuery, r.imageUrl, i));
+    itinerary.experiences.forEach((e, i) => put(e.id, e.title, 'experiences', e.imageQuery, e.imageUrl, i));
+    itinerary.landmarks.forEach((l, i) => put(l.id, l.name, 'landmarks', l.imageQuery, l.imageUrl, i));
+    itinerary.shopping.forEach((s, i) => put(s.id, s.name, 'shopping', s.imageQuery, s.imageUrl, i));
     return map;
   }, [itinerary]);
 
@@ -86,8 +105,41 @@ export function ItineraryView({
 
   const budgetMax = React.useMemo(() => Math.max(1, ...Object.values(budgetBreakdown)), [budgetBreakdown]);
 
+  const totalActivities = React.useMemo(
+    () => days.reduce((sum, d) => sum + d.blocks.length, 0),
+    [days],
+  );
+
+  /**
+   * حفظ خطة المعاينة في «رحلاتي».
+   * الزر كان يقلب أيقونة محلية فقط، فخطةٌ نجت من فشل الحفظ كانت تضيع
+   * بإغلاق التبويب رغم أن شاشة المعاينة وُصفت بأنها «شبكة أمان».
+   */
+  const save = React.useCallback(async () => {
+    if (savedId) return router.push('/dashboard');
+    setSaving(true);
+    try {
+      const res = await fetch('/api/trips', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itinerary }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error ?? 'تعذّر حفظ الخطة');
+      setSavedId(data.tripId);
+      sessionStorage.removeItem('tripgo:preview');
+      toast.success('حُفظت في رحلاتك');
+      router.replace(`/trips/${data.tripId}`);
+    } catch (err) {
+      toast.error(toErrorMessage(err, 'تعذّر حفظ الخطة'));
+    } finally {
+      setSaving(false);
+    }
+  }, [savedId, itinerary, router]);
+
   const share = React.useCallback(async () => {
-    const url = tripId ? `${window.location.origin}/trips/${tripId}` : window.location.href;
+    const id = savedId;
+    const url = id ? `${window.location.origin}/trips/${id}` : window.location.href;
     try {
       if (navigator.share) await navigator.share({ title: meta.title, url });
       else {
@@ -96,10 +148,18 @@ export function ItineraryView({
         setTimeout(() => setCopied(false), 2000);
       }
     } catch { /* ألغى المستخدم */ }
-  }, [tripId, meta.title]);
+  }, [savedId, meta.title]);
 
   /** اسم الوجهة كما سيُطابَق بكتالوج الوجهات لاختيار صور المكان الحقيقي. */
-  const destinationKey = meta.destinationEn || meta.destination;
+  const destinationKey = React.useMemo(() => tripDestinationKey(meta), [meta]);
+
+  /**
+   * صورة الرأس: الغلاف المحفوظ مع السجل أولاً حتى تتطابق الشاشة مع بطاقة
+   * الرحلة في «رحلاتي»، وإلا فنفس الخوارزمية التي حسبَته وقت الحفظ.
+   */
+  const heroSrc = heroFailed
+    ? getFallbackImage(destinationKey, 1400, 900)
+    : coverImage || getCoverImage(destinationKey, 1400, 900);
 
   return (
     <TripDestinationContext.Provider value={destinationKey}>
@@ -107,16 +167,18 @@ export function ItineraryView({
       {/* ================= الصورة العلوية ================= */}
       <div className="relative h-[46svh] min-h-[300px] w-full sm:h-[52svh]">
         <Image
-          src={getCardImage('landmarks', destinationKey, { w: 1400, h: 900, destination: destinationKey })}
+          src={heroSrc}
           alt={meta.destination}
           fill
           priority
           sizes="100vw"
+          // الرأس كان الصورة الوحيدة بلا بديل عند الفشل
+          onError={() => setHeroFailed(true)}
           className="object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-neutral-950/85 via-neutral-950/15 to-neutral-950/45" />
 
-        <ScreenLogo className="absolute inset-x-0 top-[max(1rem,env(safe-area-inset-top))] z-10" />
+        <ScreenLogo tone="onDark" className="absolute inset-x-0 top-[max(1rem,env(safe-area-inset-top))] z-10" />
 
         {/* أزرار عائمة */}
         <div className="absolute inset-x-4 top-[max(1rem,env(safe-area-inset-top))] z-10 flex items-center justify-between sm:inset-x-6">
@@ -139,7 +201,7 @@ export function ItineraryView({
           </button>
         </div>
 
-        {/* العنوان والتقييم ورفاق الرحلة */}
+        {/* العنوان والتقييم وملخّص الخطة */}
         <div className="absolute inset-x-5 bottom-6 z-10 sm:inset-x-8">
           <div className="mb-2.5 flex flex-wrap gap-1.5">
             {meta.tags.slice(0, 3).map((t) => (
@@ -152,40 +214,32 @@ export function ItineraryView({
           </h1>
 
           <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-white/75">
-            <span className="flex items-center gap-1.5">
-              <Star className="size-4 fill-sand-300 text-sand-300" />
-              <span className="num font-semibold text-sand-200">4.8</span>
-            </span>
-            <Dot />
+            {rating !== null && (
+              <>
+                <span className="flex items-center gap-1.5" title="متوسط تقييم الفنادق المقترحة">
+                  <Star className="size-4 fill-sand-300 text-sand-300" />
+                  <span className="num font-semibold text-sand-200">{rating.toFixed(1)}</span>
+                </span>
+                <Dot />
+              </>
+            )}
             <span>{meta.destination}</span>
             <Dot />
             <span>{daysAr(meta.durationDays)}</span>
           </div>
 
-          <div className="mt-4 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <div className="flex -space-x-2.5 rtl:space-x-reverse">
-                {COMPANIONS.map((id) => (
-                  <span key={id} className="relative size-9 overflow-hidden rounded-full ring-2 ring-white/80">
-                    <Image src={unsplash(id, 80, 80)} alt="" fill sizes="36px" className="object-cover" />
-                  </span>
-                ))}
-                <span className="grid size-9 place-items-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground ring-2 ring-white/80">
-                  +4
-                </span>
-              </div>
-              <span className="hidden text-[12px] text-white/75 sm:inline">حجزوا رحلة مشابهة</span>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setSaved((v) => !v)}
-              aria-label={saved ? 'إزالة من المحفوظات' : 'حفظ الرحلة'}
-              aria-pressed={saved}
-              className="grid size-12 place-items-center rounded-full bg-white shadow-card transition-transform active:scale-90"
-            >
-              <Heart className={cn('size-5 transition-colors', saved ? 'fill-rose-500 text-rose-500' : 'text-neutral-400')} />
-            </button>
+          {/* لا صور «رفاق» ولا «+4 حجزوا رحلة مشابهة»: كانت عناصر زخرفية
+              تُقدَّم كدليل اجتماعي حقيقي. مكانها ملخّص فعلي للخطة. */}
+          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12px] text-white/75">
+            <span className="inline-flex items-center gap-1.5">
+              <CalendarRange className="size-3.5" />
+              {activitiesAr(totalActivities)}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <Wallet className="size-3.5" />
+              <bdi className="font-semibold text-white">{formatPrice(meta.estimatedTotalCost, meta.currency)}</bdi>
+              للشخص
+            </span>
           </div>
         </div>
       </div>
@@ -196,6 +250,23 @@ export function ItineraryView({
         <div className="mx-auto mb-6 h-1.5 w-11 rounded-full bg-border" />
 
         <div className="mx-auto w-full max-w-[1100px]">
+          {/* شبكة الأمان يجب أن تُعلن عن نفسها، وإلا أغلق المستخدم التبويب
+              ظاناً أن الخطة محفوظة — وهي ليست كذلك. */}
+          {!savedId && (
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary/25 bg-primary/10 px-4 py-3">
+              <p className="t-sm font-medium text-primary">هذه الخطة غير محفوظة بعد.</p>
+              <button
+                type="button"
+                onClick={save}
+                disabled={saving}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-xs font-bold text-primary-foreground transition-transform active:scale-95 disabled:opacity-70"
+              >
+                {saving ? <Loader2 className="size-3.5 animate-spin" /> : <Bookmark className="size-3.5" />}
+                احفظها في رحلاتي
+              </button>
+            </div>
+          )}
+
           {/* الوصف والسعر */}
           <div className="mb-5 flex items-start justify-between gap-5">
             <div className="min-w-0 flex-1">
@@ -233,7 +304,14 @@ export function ItineraryView({
 
           {/* التبويبات */}
           <Tabs defaultValue="days" className="w-full">
-            <div className="scrollbar-none -mx-5 mb-1 overflow-x-auto px-5 sm:-mx-8 sm:px-8">
+            {/* سبعة تبويبات لا تتسع لشاشة الجوال. التدرّج على الحافة
+                اليسرى (نهاية السطر في RTL) يكشف أن وراءها المزيد. */}
+            <div className="relative -mx-5 mb-1 sm:-mx-8">
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r from-card to-transparent"
+              />
+              <div className="scrollbar-none overflow-x-auto px-5 sm:px-8">
               <TabsList>
                 <TabsTrigger value="days"><CalendarRange className="size-4" />الأيام</TabsTrigger>
                 <TabsTrigger value="hotels"><HotelIcon className="size-4" />الفنادق</TabsTrigger>
@@ -243,6 +321,7 @@ export function ItineraryView({
                 <TabsTrigger value="landmarks"><LandmarkIcon className="size-4" />المعالم</TabsTrigger>
                 <TabsTrigger value="shopping"><ShoppingBag className="size-4" />التسوق</TabsTrigger>
               </TabsList>
+              </div>
             </div>
 
             <TabsContent value="days">
@@ -361,15 +440,24 @@ export function ItineraryView({
         <div className="pointer-events-auto flex w-full max-w-[520px] items-center gap-2.5">
           <button
             type="button"
-            onClick={() => setSaved((v) => !v)}
-            aria-label={saved ? 'محفوظة' : 'حفظ'}
-            className="grid size-14 shrink-0 place-items-center rounded-2xl border border-border bg-card shadow-card-lg transition-transform active:scale-95"
+            onClick={save}
+            disabled={saving}
+            aria-label={savedId ? 'محفوظة في رحلاتي — افتح رحلاتي' : 'احفظ الخطة في رحلاتي'}
+            className={cn(
+              'grid size-14 shrink-0 place-items-center rounded-2xl border shadow-card-lg transition-transform active:scale-95 disabled:opacity-70',
+              savedId ? 'border-primary/30 bg-primary/10' : 'border-border bg-card',
+            )}
           >
-            <Bookmark className={cn('size-5', saved ? 'fill-primary text-primary' : 'text-muted-foreground')} />
+            {saving
+              ? <Loader2 className="size-5 animate-spin text-primary" />
+              : savedId
+                ? <BookmarkCheck className="size-5 text-primary" />
+                : <Bookmark className="size-5 text-muted-foreground" />}
           </button>
 
+          {/* لا رابط «#» ميت: إن لم يُعِد النموذج رابط حجز نبحث في booking */}
           <a
-            href={itinerary.hotels[0]?.bookingUrl || '#'}
+            href={itinerary.hotels[0]?.bookingUrl || hotelSearchUrl(itinerary.hotels[0]?.name ?? '', meta.destinationEn || meta.destination)}
             target="_blank"
             rel="noopener noreferrer"
             className="flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-primary text-sm font-bold text-primary-foreground shadow-card-lg transition-all active:scale-[0.98] hover:brightness-110"

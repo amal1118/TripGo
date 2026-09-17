@@ -3,7 +3,7 @@
  */
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
-import { streamComplete, FREE_MODELS, OpenRouterError } from '@/lib/openrouter';
+import { streamComplete, FREE_MODELS, OpenRouterError, paidModelsFor } from '@/lib/openrouter';
 import { assistantSystemPrompt } from '@/lib/prompts';
 import { chatBodySchema } from '@/lib/schemas';
 
@@ -39,6 +39,8 @@ export async function POST(request: Request) {
   try {
     const stream = await streamComplete({
       models: FREE_MODELS.chat,
+      // شبكة أمان مدفوعة — لا تُستدعى إلا بعد فشل كل النماذج المجانية.
+      paidFallback: paidModelsFor('chat'),
       temperature: 0.8,
       maxTokens: 1500,
       messages: [{ role: 'system', content: system }, ...parsed.data.messages],

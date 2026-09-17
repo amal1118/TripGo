@@ -21,6 +21,7 @@
 
 import * as React from 'react';
 import Image from 'next/image';
+import { TripGoLogo } from '@/components/brand/TripGoLogo';
 import Link from 'next/link';
 import { Bookmark, ArrowLeft, Sparkles, Star } from 'lucide-react';
 import { HERO_DESTINATIONS, FEATURED_INDEX, unsplash, type Destination } from '@/lib/destinations';
@@ -73,16 +74,9 @@ export function HeroSection() {
       <Link
         href="/"
         aria-label="TripGo"
-        className="absolute start-5 top-[max(1.25rem,env(safe-area-inset-top))] z-20 block h-7 w-auto overflow-hidden rounded-lg shadow-md sm:start-8 sm:h-8 lg:start-14 lg:h-9"
+        className="absolute start-5 top-[max(1.25rem,env(safe-area-inset-top))] z-20 block text-white sm:start-8 lg:start-14"
       >
-        <Image
-          src="/logo-wordmark.png"
-          alt="TripGo"
-          width={975}
-          height={415}
-          priority
-          className="h-full w-auto object-contain"
-        />
+        <TripGoLogo className="h-7 w-auto sm:h-8 lg:h-9" />
       </Link>
 
       <div className="relative z-10 mx-auto flex w-full max-w-[1500px] flex-1 flex-col justify-end px-5 pb-32 pt-12 sm:px-8 sm:pb-28 sm:pt-16 lg:justify-center lg:px-14 lg:pb-24 lg:pt-24">

@@ -10,14 +10,17 @@ trip-go/
 │   ├── chat/page.tsx               # المساعد الذكي
 │   ├── destinations/page.tsx       # كل الوجهات المقترحة (٢٠) + تصفية وبحث وترتيب
 │   ├── destinations/[slug]/page.tsx# صفحة الوجهة الواحدة (SSG لكل وجهة)
-│   ├── trips/[id]/page.tsx         # شاشة تفاصيل الرحلة
-│   ├── trips/preview/page.tsx      # معاينة خطة تعذّر حفظها (شبكة أمان)
+│   ├── trips/[id]/page.tsx         # شاشة تفاصيل الرحلة (+ صورة OG للمشاركة)
+│   ├── trips/[id]/loading.tsx      # هيكل انتظار أثناء جلب الخطة
+│   ├── trips/preview/page.tsx      # معاينة خطة تعذّر حفظها (شبكة أمان) + حفظ يدوي
+│   ├── not-found.tsx               # 404 بالعربية
+│   ├── error.tsx                   # حدّ الأخطاء العام
 │   ├── auth/callback/route.ts      # تبديل كود OAuth بجلسة
 │   └── api/
 │       ├── plan/route.ts           # POST: تفضيلات → LLM → JSON → Supabase
 │       ├── chat/route.ts           # POST: محادثة متدفقة (Edge)
 │       └── trips/
-│           ├── route.ts            # GET: قائمة الرحلات
+│           ├── route.ts            # GET: قائمة الرحلات | POST: حفظ خطة معاينة
 │           └── [id]/route.ts       # DELETE: حذف رحلة
 │
 ├── components/
@@ -39,6 +42,8 @@ trip-go/
 │   │   └── CardActions.tsx         # أزرار CTA خارجية
 │   ├── itinerary/
 │   │   ├── ItineraryView.tsx       # JSON → تبويبات وبطاقات
+│   │   ├── DaysTimeline.tsx        # خط سير الأيام (شريط لاصق + مراقب ظهور)
+│   │   ├── ItinerarySkeleton.tsx   # هيكل الانتظار (مشترك مع المعاينة)
 │   │   └── cards.tsx               # 6 بطاقات متخصصة + TimelineBlock
 │   ├── plan/
 │   │   ├── PlanBuilder.tsx         # معالج 3 خطوات (useReducer)
@@ -54,6 +59,7 @@ trip-go/
 │   ├── openrouter.ts               # عميل LLM + extractJson
 │   ├── schemas.ts                  # تحقق zod من مخرجات النموذج
 │   ├── images.ts                   # مصادر صور البطاقات + روابط الخرائط
+│   ├── unsplash.ts                 # بحث imageQuery → صورة المكان (اختياري بمفتاح)
 │   ├── media.ts                    # فيديو الهيرو بثلاث دقات + صورة الغلاف
 │   ├── hooks/useDragScroll.ts      # سحب أفقي بزخم + اتجاه RTL صحيح
 │   ├── hooks/usePointerTilt.ts     # ميلان ووهج يتبعان المؤشر

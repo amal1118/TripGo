@@ -73,7 +73,7 @@ export default function DestinationPage({ params }: Props) {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-neutral-950/55 to-neutral-950/25" />
 
-        <ScreenLogo className="absolute inset-x-0 top-[max(1rem,env(safe-area-inset-top))] z-10" />
+        <ScreenLogo tone="onDark" className="absolute inset-x-0 top-[max(1rem,env(safe-area-inset-top))] z-10" />
 
         <div className="relative z-10 mx-auto flex h-full w-full max-w-[1500px] flex-col justify-between px-5 pb-10 pt-8 sm:px-8 lg:px-14">
           <Link

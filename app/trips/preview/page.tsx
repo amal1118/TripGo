@@ -4,6 +4,8 @@
  * /trips/preview — شبكة أمان.
  * إذا تعذّر حفظ الخطة في Supabase (خلل RLS أو انقطاع)، يحتفظ المعالج بها
  * في sessionStorage ويوجّه هنا، فلا يضيع ناتج دقيقة كاملة من التوليد.
+ * الخطة هنا غير محفوظة، وItineraryView يعرض شريط حفظ صريحاً يستدعي
+ * POST /api/trips — قبل ذلك كانت تضيع بمجرد إغلاق التبويب.
  * ملاحظة: المسار الثابت له أولوية على [id] في Next، فلا تعارض بينهما.
  */
 
@@ -11,6 +13,7 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertTriangle } from 'lucide-react';
 import { ItineraryView } from '@/components/itinerary/ItineraryView';
+import { ItinerarySkeleton } from '@/components/itinerary/ItinerarySkeleton';
 import { itinerarySchema } from '@/lib/schemas';
 import type { Itinerary } from '@/types/trip';
 
@@ -33,14 +36,16 @@ export default function PreviewPage() {
 
   if (missing) {
     return (
-      <div className="grid min-h-dvh place-items-center px-6 text-center">
+      <div className="canvas grid min-h-dvh place-items-center px-6 pb-28 text-center">
         <div className="max-w-sm">
-          <AlertTriangle className="mx-auto mb-4 size-10 text-primary" />
+          <span className="mx-auto mb-5 grid size-16 place-items-center rounded-3xl bg-primary/10">
+            <AlertTriangle className="size-8 text-primary" />
+          </span>
           <h1 className="t-h2">لا توجد خطة للمعاينة</h1>
           <p className="mt-2 t-sm text-muted-foreground">انتهت الجلسة أو فُتح الرابط مباشرة.</p>
           <button
             onClick={() => router.push('/plan/new')}
-            className="mt-6 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground"
+            className="mt-6 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-transform active:scale-95"
           >
             أنشئ خطة جديدة
           </button>
@@ -49,7 +54,7 @@ export default function PreviewPage() {
     );
   }
 
-  if (!itinerary) return <div className="grid min-h-dvh place-items-center t-sm text-muted-foreground">جارٍ التحميل…</div>;
+  if (!itinerary) return <ItinerarySkeleton />;
 
-  return <ItineraryView itinerary={itinerary} unsaved />;
+  return <ItineraryView itinerary={itinerary} />;
 }

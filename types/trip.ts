@@ -38,18 +38,24 @@ export interface Flight {
   stops: number; cabin: 'economy' | 'premium' | 'business';
   price: number; currency: string; priceNote: string;
   bookingUrl: string; imageQuery: string;
+  /** رابط صورة العنصر كما حُلّ من `imageQuery` وقت التوليد (قد يكون فارغاً). */
+  imageUrl: string;
 }
 
 export interface Hotel {
   id: string; name: string; area: string; rating: number;
   pricePerNight: number; currency: string; highlights: string[];
   whyItFits: string; mapUrl: string; bookingUrl: string; imageQuery: string;
+  /** رابط صورة العنصر كما حُلّ من `imageQuery` وقت التوليد (قد يكون فارغاً). */
+  imageUrl: string;
 }
 
 export interface Restaurant {
   id: string; name: string; type: 'restaurant' | 'cafe' | 'street-food' | 'dessert';
   cuisine: string; priceLevel: number; mustTry: string; area: string;
   isHalalFriendly: boolean; mapUrl: string; imageQuery: string;
+  /** رابط صورة العنصر كما حُلّ من `imageQuery` وقت التوليد (قد يكون فارغاً). */
+  imageUrl: string;
 }
 
 export interface Experience {
@@ -57,6 +63,8 @@ export interface Experience {
   category: 'adventure' | 'culture' | 'nature' | 'nightlife' | 'wellness' | 'family';
   durationHours: number; price: number; currency: string;
   description: string; bestTime: string; bookingUrl: string; imageQuery: string;
+  /** رابط صورة العنصر كما حُلّ من `imageQuery` وقت التوليد (قد يكون فارغاً). */
+  imageUrl: string;
 }
 
 export interface Landmark {
@@ -64,11 +72,15 @@ export interface Landmark {
   type: 'historic' | 'religious' | 'modern' | 'viewpoint' | 'museum';
   entryFee: number; currency: string; suggestedDuration: string;
   tip: string; mapUrl: string; imageQuery: string;
+  /** رابط صورة العنصر كما حُلّ من `imageQuery` وقت التوليد (قد يكون فارغاً). */
+  imageUrl: string;
 }
 
 export interface Shopping {
   id: string; name: string; type: 'mall' | 'souq' | 'boutique-street' | 'outlet';
   knownFor: string; priceLevel: number; area: string; mapUrl: string; imageQuery: string;
+  /** رابط صورة العنصر كما حُلّ من `imageQuery` وقت التوليد (قد يكون فارغاً). */
+  imageUrl: string;
 }
 
 export interface DayBlock {

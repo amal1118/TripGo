@@ -24,18 +24,20 @@ interface CardImageProps {
   sizes?: string;
   /** ترتيب البطاقة داخل فئتها — يمنع ظهور الصورة نفسها في بطاقتين متجاورتين. */
   seed?: number;
+  /** صورة العنصر نفسه إن حُلّت وقت التوليد — أدقّ من أي مجموعة عامة. */
+  url?: string | null;
 }
 
 /**
  * صورة بطاقة مع تدرّج سفلي لقراءة النص، وتبديل تلقائي لمصدر بديل عند الفشل.
  * memo لأن البطاقات تُعاد ترتيبها كثيراً عند التصفية.
  */
-function CardImageBase({ category, query, alt, className, priority, sizes = '(max-width: 768px) 100vw, 380px', seed = 0 }: CardImageProps) {
+function CardImageBase({ category, query, alt, className, priority, sizes = '(max-width: 768px) 100vw, 380px', seed = 0, url }: CardImageProps) {
   const [failed, setFailed] = React.useState(false);
   const destination = React.useContext(TripDestinationContext);
   const src = failed
     ? getFallbackImage(query)
-    : getCardImage(category, query, { seed, destination });
+    : getCardImage(category, query, { seed, destination, url });
 
   return (
     <div className={cn('relative overflow-hidden bg-muted', className)}>

@@ -25,6 +25,8 @@ export interface BlockRef {
   name: string;
   category: CardCategory;
   imageQuery: string;
+  /** الصورة المحلولة للعنصر — نفسها التي تعرضها بطاقته. */
+  imageUrl?: string;
 }
 
 export function DaysTimeline({
@@ -200,7 +202,7 @@ function Block({
       currency={currency}
       isLast={isLast}
       refType={block.refType}
-      image={ref ? { category: ref.category, query: ref.imageQuery || ref.name, seed: ref.seed ?? 0 } : null}
+      image={ref ? { category: ref.category, query: ref.imageQuery || ref.name, seed: ref.seed ?? 0, url: ref.imageUrl } : null}
     />
   );
 }

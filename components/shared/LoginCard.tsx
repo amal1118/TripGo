@@ -1,7 +1,6 @@
 'use client';
 
 import * as React from 'react';
-import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { Loader2, Mail, ArrowRight, CheckCircle2 } from 'lucide-react';
@@ -11,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toErrorMessage } from '@/lib/utils';
 import { getAuthCallbackUrl } from '@/lib/site-url';
+import { GoMark } from '@/components/brand/GoMark';
 
 const GoogleLogo = (
   <svg viewBox="0 0 24 24" className="size-5" aria-hidden>
@@ -35,12 +35,14 @@ export function LoginCard() {
     // `reused_code` تحديداً شائع على الجوال: نداء ثانٍ على رابط الرجوع
     // (تحديث بالسحب، أو متصفح داخل تطبيق يُسلّم الرابط للمتصفح الافتراضي)
     // يُحاول استبدال كود Google نفسه مرتين، والثانية ترفضها Google.
-    toast.error(
-      code === 'reused_code'
-        ? 'انتهت صلاحية رابط الدخول أو استُخدم مرتين. اضغط الزر مرة واحدة وانتظر.'
-        : 'تعذّر إكمال تسجيل الدخول. حاول مرة أخرى.',
-      { description: params.get('reason') ?? undefined },
-    );
+    const MESSAGES: Record<string, string> = {
+      reused_code: 'انتهت صلاحية رابط الدخول أو استُخدم مرتين. اضغط الزر مرة واحدة وانتظر.',
+      link_expired: 'انتهت صلاحية رابط البريد أو استُخدم من قبل. اطلب رابطاً جديداً.',
+      verify_failed: 'تعذّر التحقق من رابط البريد. اطلب رابطاً جديداً.',
+    };
+    toast.error(MESSAGES[code] ?? 'تعذّر إكمال تسجيل الدخول. حاول مرة أخرى.', {
+      description: params.get('reason') ?? undefined,
+    });
   }, [params]);
 
   /** الوجهة بعد نجاح المصادقة — نفس المسار للمزوّد وللرابط السحري. */
@@ -82,7 +84,17 @@ export function LoginCard() {
         if (error) throw error;
         setSentTo(address);
       } catch (err) {
-        toast.error(toErrorMessage(err, 'تعذّر إرسال رابط الدخول'));
+        // Supabase يردّ حدّ الإرسال بالإنجليزية («only request this after N
+        // seconds») — لا معنى لعرضه كما هو في واجهة عربية.
+        const raw = toErrorMessage(err, '');
+        const seconds = /after (\d+) seconds/i.exec(raw)?.[1];
+        toast.error(
+          seconds
+            ? `انتظر ${seconds} ثانية قبل طلب رابط جديد.`
+            : /rate limit|too many/i.test(raw)
+              ? 'تجاوزت حدّ طلبات البريد. حاول بعد قليل.'
+              : raw || 'تعذّر إرسال رابط الدخول',
+        );
       } finally {
         setEmailPending(false);
       }
@@ -122,9 +134,7 @@ export function LoginCard() {
   return (
     <div className="card-warm p-7 shadow-card-lg sm:p-10">
       <div className="mb-8 text-center">
-        <div className="mx-auto mb-5 size-14 overflow-hidden rounded-2xl shadow-sm">
-          <Image src="/icon-mark.png" alt="" width={512} height={512} className="size-full object-cover" />
-        </div>
+        <GoMark className="mx-auto mb-5 h-12 w-auto" />
         <h1 className="text-2xl font-semibold">أهلاً بك في TripGo</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           {/* وصل من صفحة محميّة؟ اشرح السبب بدل إظهار نموذج دخول بلا سياق —

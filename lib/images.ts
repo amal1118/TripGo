@@ -84,35 +84,98 @@ function hash(input: string): number {
 }
 
 /**
- * فهرس الوجهات حسب الاسم — يُبنى مرة واحدة.
+ * فهرسان للوجهات يُبنيان مرة واحدة:
+ *  • DESTINATION_IMAGES — مطابقة تامة، ويشمل اسم الدولة (فـ«اليابان» وحدها
+ *    وجهةٌ مقبولة إن كتبها المستخدم هكذا).
+ *  • CITY_IMAGES — أسماء المدن فقط، وهو وحده ما يُستخدم في المطابقة
+ *    بالاحتواء. لو شمل الدول لالتقطت «طوكيو، اليابان» صورَ كيوتو.
  * المفتاح بالعربية والإنجليزية معاً لأن النموذج قد يعيد أياً منهما.
  */
-const DESTINATION_IMAGES = (() => {
-  const map = new Map<string, string[]>();
+const [DESTINATION_IMAGES, CITY_IMAGES] = (() => {
+  const all = new Map<string, string[]>();
+  const cities = new Map<string, string[]>();
   for (const d of DESTINATIONS) {
     const images = [d.image, ...d.gallery];
-    for (const key of [d.name, d.nameEn, d.country, d.id]) {
-      if (key) map.set(key.trim().toLowerCase(), images);
+    for (const key of [d.name, d.nameEn, d.id]) {
+      if (key) {
+        all.set(key.trim().toLowerCase(), images);
+        cities.set(key.trim().toLowerCase(), images);
+      }
     }
+    // الدولة مفتاحُ مطابقةٍ تامة فقط، ولأول وجهة فيها دون أن تطغى على غيرها
+    const country = d.country?.trim().toLowerCase();
+    if (country && !all.has(country)) all.set(country, images);
   }
-  return map;
+  return [all, cities] as const;
 })();
 
 /**
- * صور الوجهة نفسها إن كانت ضمن الكتالوج المعتمد.
- * المطابقة بالاحتواء لأن النموذج يُعيد «كيوتو، اليابان» أو «Kyoto, Japan»
- * لا الاسم المجرّد.
+ * المطابقة تجري على الاسم العربي والإنجليزي معاً: النموذج يعيد
+ * `destinationEn` أحياناً فارغاً فنسقط إلى الاسم العربي، ومفاتيح الكتالوج
+ * تحمل الصيغتين.
  */
-export function destinationImages(destination?: string | null): string[] | null {
-  if (!destination) return null;
-  const q = destination.trim().toLowerCase();
-  if (!q) return null;
-  const exact = DESTINATION_IMAGES.get(q);
-  if (exact) return exact;
-  for (const [key, images] of DESTINATION_IMAGES) {
-    if (key.length >= 3 && q.includes(key)) return images;
+export function destinationImages(...candidates: (string | null | undefined)[]): string[] | null {
+  for (const candidate of candidates) {
+    const q = candidate?.trim().toLowerCase();
+    if (!q) continue;
+    const exact = DESTINATION_IMAGES.get(q);
+    if (exact) return exact;
+  }
+  // مطابقة المدينة بالاحتواء («كيوتو، اليابان» ⊃ «كيوتو»). أسماء الدول
+  // مستثناة عمداً: «طوكيو، اليابان» كان يلتقط صور كيوتو لأنها أول وجهة
+  // يابانية في الكتالوج، فتُنسب صور مدينةٍ إلى مدينة أخرى.
+  for (const candidate of candidates) {
+    const q = candidate?.trim().toLowerCase();
+    if (!q) continue;
+    for (const [key, images] of CITY_IMAGES) {
+      if (key.length >= 3 && q.includes(key)) return images;
+    }
   }
   return null;
+}
+
+/**
+ * اختيار صورة لخانة (slot) داخل الشاشة الواحدة.
+ *
+ * الخانة 0 محجوزة للغلاف، وبطاقات المعالم تبدأ من 1 — فلا تتكرر صورة
+ * الغلاف في أول بطاقة كما كان يحدث حين كانت الاثنتان تستخدمان البذرة 0.
+ * وحين تنفد صور المكان الحقيقي (أربع لكل وجهة) تُكمل المجموعة العامة بدل
+ * أن تلتفّ الصور على نفسها داخل التبويب الواحد.
+ */
+function pickImageId(category: CardCategory, destination: string | null | undefined, slot: number): string {
+  let s = Math.max(0, Math.trunc(slot));
+
+  if (category === 'landmarks') {
+    const local = destinationImages(destination);
+    if (local) {
+      if (s < local.length) return local[s];
+      s -= local.length;
+    }
+  }
+
+  const pool = POOLS[category] ?? POOLS.landmarks;
+  // الإزاحة تعتمد على الوجهة لا على نص البطاقة: لو اعتمدت على النص
+  // لاختلفت لكل بطاقة فضاع ترتيبُها وعاد التصادم بين المتجاورتين.
+  const offset = hash(destination || category);
+  return pool[(offset + s) % pool.length];
+}
+
+function unsplashUrl(id: string, w: number, h: number, q = 72) {
+  return `https://images.unsplash.com/${id}?auto=format&fit=crop&w=${w}&h=${h}&q=${q}`;
+}
+
+/** مضيفات مسموح بها في next.config.mjs — أي رابط خارجها يُهمَل. */
+const ALLOWED_HOSTS = new Set(['images.unsplash.com', 'picsum.photos']);
+
+/** صورة جاهزة مُخزَّنة مع العنصر (من بحث Unsplash وقت التوليد). */
+function usableUrl(url?: string | null): string | null {
+  if (!url) return null;
+  try {
+    const { protocol, hostname } = new URL(url);
+    return protocol === 'https:' && ALLOWED_HOSTS.has(hostname) ? url : null;
+  } catch {
+    return null;
+  }
 }
 
 export function getCardImage(
@@ -125,26 +188,21 @@ export function getCardImage(
     seed?: number;
     /** وجهة الرحلة — تُفعّل صور المكان الحقيقي للمعالم. */
     destination?: string | null;
+    /**
+     * صورة العنصر نفسه كما حُلّت وقت التوليد من `imageQuery`. حين تتوفّر
+     * فهي أدقّ من أي مجموعة عامة، لأنها بحثٌ عن اسم المكان الفعلي.
+     */
+    url?: string | null;
   } = {},
 ): string {
-  const { w = 800, h = 600, seed = 0, destination } = opts;
+  const { w = 800, h = 600, seed = 0, destination, url } = opts;
 
-  // المعالم هي ما يرتبط بالمكان فعلاً؛ الفندق والمطعم عامّان بطبيعتهما
-  const local = category === 'landmarks' ? destinationImages(destination) : null;
-  const pool = local ?? POOLS[category] ?? POOLS.landmarks;
+  const resolved = usableUrl(url);
+  if (resolved) return resolved;
 
-  /**
-   * الاختيار بالترتيب (البذرة = رقم البطاقة داخل فئتها) لا بتجزئة النص.
-   * التجزئة كانت تُعطي بطاقتين متجاورتين الصورة نفسها كثيراً — مع مجموعة
-   * من 12 صورة واحتمال تصادم بين 4 بطاقات يقارب 40%. الترتيب يضمن التمايز
-   * ما دام عدد البطاقات ≤ حجم المجموعة، والتجزئة تبقى إزاحةً تختلف من
-   * وجهة لأخرى فلا تتشابه كل الرحلات.
-   */
-  // الإزاحة تعتمد على الوجهة (أو الفئة) لا على نص البطاقة: لو اعتمدت على
-  // النص لاختلفت لكل بطاقة فضاع ترتيبُها وعاد التصادم من جديد.
-  const offset = hash(destination || category);
-  const id = pool[(offset + seed) % pool.length];
-  return `https://images.unsplash.com/${id}?auto=format&fit=crop&w=${w}&h=${h}&q=72`;
+  // الخانة 0 للغلاف؛ بطاقات المعالم تبدأ بعده. باقي الفئات لا غلاف لها.
+  const slot = category === 'landmarks' ? seed + 1 : seed;
+  return unsplashUrl(pickImageId(category, destination, slot), w, h);
 }
 
 /** بديل عام عند فشل تحميل الصورة الأساسية (onError). */
@@ -152,13 +210,24 @@ export function getFallbackImage(query: string, w = 800, h = 600) {
   return `https://picsum.photos/seed/${encodeURIComponent(query || 'tripgo')}/${w}/${h}`;
 }
 
-/** صورة غلاف للرحلة تُخزَّن مع السجل في Supabase. */
-export function getCoverImage(destinationEn: string) {
-  const local = destinationImages(destinationEn);
-  if (local) {
-    return `https://images.unsplash.com/${local[0]}?auto=format&fit=crop&w=1200&h=700&q=74`;
-  }
-  return getCardImage('landmarks', destinationEn, { w: 1200, h: 700 });
+/**
+ * مفتاح الوجهة الموحّد: الاسمان العربي والإنجليزي معاً.
+ *
+ * يخدم غرضين في آنٍ واحد — المطابقة بالاحتواء تنجح أياً كانت اللغة التي
+ * أعادها النموذج، والتجزئة تبقى ثابتة لأن المفتاح يُبنى بنفس الطريقة في
+ * الخادم (وقت حفظ الغلاف) وفي الواجهة (وقت رسم البطاقات).
+ */
+export function tripDestinationKey(meta: { destination?: string | null; destinationEn?: string | null }) {
+  return [meta.destination, meta.destinationEn].map((v) => v?.trim()).filter(Boolean).join(' ');
+}
+
+/**
+ * صورة غلاف الرحلة — تُخزَّن في Supabase وتُستخدم نفسها في رأس صفحة الخطة،
+ * فتتطابق البطاقة في «رحلاتي» مع الشاشة التي تفتحها.
+ * تحجز الخانة 0، وبطاقات المعالم تبدأ من 1 فلا تتكرر الصورة في الشاشة.
+ */
+export function getCoverImage(destinationKey: string, w = 1200, h = 700) {
+  return unsplashUrl(pickImageId('landmarks', destinationKey, 0), w, h, 74);
 }
 
 export function mapsUrl(query: string) {

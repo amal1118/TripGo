@@ -14,7 +14,10 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'sonner';
-import { ArrowLeft, ArrowRight, Loader2, Sparkles, MapPin, CalendarDays, Users } from 'lucide-react';
+import {
+  ArrowLeft, ArrowRight, Loader2, Sparkles,
+  MapPin, PlaneTakeoff, CalendarDays, CalendarCheck, CalendarRange, Users,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -222,60 +225,64 @@ type SetField = <K extends keyof State>(key: K, value: State[K]) => void;
 
 const StepDestination = React.memo(function StepDestination({ state, setField }: { state: State; setField: SetField }) {
   return (
-    <>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="destination" className="flex items-center gap-1.5">
-            <MapPin className="size-3.5 text-primary" /> الوجهة
-          </Label>
-          <Input
-            id="destination"
-            placeholder="مثال: طوكيو، اليابان"
-            value={state.destination}
-            onChange={(e) => setField('destination', e.target.value)}
-            autoFocus
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="origin">مدينة الانطلاق</Label>
-          <Input
-            id="origin"
-            placeholder="مثال: الرياض"
-            value={state.origin ?? ''}
-            onChange={(e) => setField('origin', e.target.value)}
-          />
-        </div>
+    /* شبكة واحدة لكل الحقول الستة: عمودان متساويان وفواصل موحّدة، فتتحاذى
+       كل خانة مع مقابلها أفقياً بدل ثلاث شبكات منفصلة بمسافات مختلفة. */
+    <div className="grid gap-x-4 gap-y-5 sm:grid-cols-2">
+      <div className="space-y-2">
+        <Label htmlFor="destination">
+          <MapPin className="size-3.5 shrink-0 text-primary" /> الوجهة
+        </Label>
+        <Input
+          id="destination"
+          placeholder="مثال: طوكيو، اليابان"
+          value={state.destination}
+          onChange={(e) => setField('destination', e.target.value)}
+          autoFocus
+        />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="start" className="flex items-center gap-1.5">
-            <CalendarDays className="size-3.5 text-primary" /> تاريخ المغادرة
-          </Label>
-          <Input id="start" type="date" value={state.startDate ?? ''} onChange={(e) => setField('startDate', e.target.value)} />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="end">تاريخ العودة</Label>
-          <Input id="end" type="date" min={state.startDate} value={state.endDate ?? ''} onChange={(e) => setField('endDate', e.target.value)} />
-        </div>
+      <div className="space-y-2">
+        <Label htmlFor="origin">
+          <PlaneTakeoff className="size-3.5 shrink-0 text-primary" /> مدينة الانطلاق
+        </Label>
+        <Input
+          id="origin"
+          placeholder="مثال: الرياض"
+          value={state.origin ?? ''}
+          onChange={(e) => setField('origin', e.target.value)}
+        />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="days">عدد الأيام</Label>
-          <Input id="days" type="number" min={1} max={30} value={state.durationDays}
-                 onChange={(e) => setField('durationDays', Number(e.target.value))} />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="travelers" className="flex items-center gap-1.5">
-            <Users className="size-3.5 text-primary" /> عدد المسافرين
-          </Label>
-          <Input id="travelers" type="number" min={1} max={20} value={state.travelers}
-                 onChange={(e) => setField('travelers', Number(e.target.value))} />
-        </div>
+      <div className="space-y-2">
+        <Label htmlFor="start">
+          <CalendarDays className="size-3.5 shrink-0 text-primary" /> تاريخ المغادرة
+        </Label>
+        <Input id="start" type="date" value={state.startDate ?? ''} onChange={(e) => setField('startDate', e.target.value)} />
       </div>
-    </>
+
+      <div className="space-y-2">
+        <Label htmlFor="end">
+          <CalendarCheck className="size-3.5 shrink-0 text-primary" /> تاريخ العودة
+        </Label>
+        <Input id="end" type="date" min={state.startDate} value={state.endDate ?? ''} onChange={(e) => setField('endDate', e.target.value)} />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="days">
+          <CalendarRange className="size-3.5 shrink-0 text-primary" /> عدد الأيام
+        </Label>
+        <Input id="days" type="number" min={1} max={30} value={state.durationDays}
+               onChange={(e) => setField('durationDays', Number(e.target.value))} />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="travelers">
+          <Users className="size-3.5 shrink-0 text-primary" /> عدد المسافرين
+        </Label>
+        <Input id="travelers" type="number" min={1} max={20} value={state.travelers}
+               onChange={(e) => setField('travelers', Number(e.target.value))} />
+      </div>
+    </div>
   );
 });
 

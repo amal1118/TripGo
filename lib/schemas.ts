@@ -29,7 +29,7 @@ export const flightSchema = z.object({
   durationMinutes: num, stops: num,
   cabin: z.enum(['economy', 'premium', 'business']).catch('economy'),
   price: num, currency: str, priceNote: str,
-  bookingUrl: url, imageQuery: str,
+  bookingUrl: url, imageQuery: str, imageUrl: url,
 });
 
 export const hotelSchema = z.object({
@@ -37,7 +37,7 @@ export const hotelSchema = z.object({
   rating: z.coerce.number().min(0).max(5).catch(4.2),
   pricePerNight: num, currency: str,
   highlights: z.array(z.coerce.string()).default([]),
-  whyItFits: str, mapUrl: url, bookingUrl: url, imageQuery: str,
+  whyItFits: str, mapUrl: url, bookingUrl: url, imageQuery: str, imageUrl: url,
 });
 
 export const restaurantSchema = z.object({
@@ -46,28 +46,28 @@ export const restaurantSchema = z.object({
   cuisine: str, priceLevel: z.coerce.number().min(1).max(4).catch(2),
   mustTry: str, area: str,
   isHalalFriendly: bool,
-  mapUrl: url, imageQuery: str,
+  mapUrl: url, imageQuery: str, imageUrl: url,
 });
 
 export const experienceSchema = z.object({
   id: str, title: str,
   category: z.enum(['adventure', 'culture', 'nature', 'nightlife', 'wellness', 'family']).catch('culture'),
   durationHours: num, price: num, currency: str,
-  description: str, bestTime: str, bookingUrl: url, imageQuery: str,
+  description: str, bestTime: str, bookingUrl: url, imageQuery: str, imageUrl: url,
 });
 
 export const landmarkSchema = z.object({
   id: str, name: str,
   type: z.enum(['historic', 'religious', 'modern', 'viewpoint', 'museum']).catch('historic'),
   entryFee: num, currency: str, suggestedDuration: str,
-  tip: str, mapUrl: url, imageQuery: str,
+  tip: str, mapUrl: url, imageQuery: str, imageUrl: url,
 });
 
 export const shoppingSchema = z.object({
   id: str, name: str,
   type: z.enum(['mall', 'souq', 'boutique-street', 'outlet']).catch('mall'),
   knownFor: str, priceLevel: z.coerce.number().min(1).max(4).catch(2),
-  area: str, mapUrl: url, imageQuery: str,
+  area: str, mapUrl: url, imageQuery: str, imageUrl: url,
 });
 
 export const dayBlockSchema = z.object({

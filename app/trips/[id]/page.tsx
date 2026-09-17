@@ -8,8 +8,33 @@ interface Props { params: { id: string } }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const supabase = createClient();
-  const { data } = await supabase.from('trips').select('title, destination').eq('id', params.id).maybeSingle();
-  return { title: data?.title ?? 'خطة الرحلة', description: data ? `خطة رحلة إلى ${data.destination}` : undefined };
+  const { data } = await supabase
+    .from('trips')
+    .select('title, destination, cover_image')
+    .eq('id', params.id)
+    .maybeSingle();
+
+  if (!data) return { title: 'خطة الرحلة' };
+
+  const description = `خطة رحلة إلى ${data.destination}`;
+  return {
+    title: data.title,
+    description,
+    // بلا صورة كان رابط المشاركة يظهر في واتساب وتويتر كنصّ عارٍ،
+    // رغم أن الغلاف مخزَّن مع السجل أصلاً.
+    openGraph: {
+      title: data.title,
+      description,
+      type: 'article',
+      images: data.cover_image ? [{ url: data.cover_image, width: 1200, height: 700 }] : undefined,
+    },
+    twitter: {
+      card: data.cover_image ? 'summary_large_image' : 'summary',
+      title: data.title,
+      description,
+      images: data.cover_image ? [data.cover_image] : undefined,
+    },
+  };
 }
 
 /** Server Component: يجلب الخطة ويمرّرها جاهزة — بلا حالة تحميل على العميل. */
@@ -17,7 +42,7 @@ export default async function TripPage({ params }: Props) {
   const supabase = createClient();
   const { data, error } = await supabase
     .from('trips')
-    .select('id, title, itinerary')
+    .select('id, title, itinerary, cover_image')
     .eq('id', params.id)
     .maybeSingle();
 
@@ -27,5 +52,5 @@ export default async function TripPage({ params }: Props) {
   const parsed = itinerarySchema.safeParse(data.itinerary);
   if (!parsed.success) notFound();
 
-  return <ItineraryView itinerary={parsed.data} tripId={data.id} />;
+  return <ItineraryView itinerary={parsed.data} tripId={data.id} coverImage={data.cover_image} />;
 }

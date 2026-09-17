@@ -18,7 +18,7 @@ import { CardImage, TripDestinationContext } from '@/components/glass/CardImage'
 import { CardActions } from '@/components/glass/CardActions';
 import { Badge } from '@/components/ui/badge';
 import { formatPrice, formatDuration, priceLevelLabel, hoursAr, cn } from '@/lib/utils';
-import { mapsUrl, getCardImage, getFallbackImage } from '@/lib/images';
+import { mapsUrl, flightSearchUrl, getCardImage, getFallbackImage } from '@/lib/images';
 import type {
   Flight, Hotel, Restaurant, Experience, Landmark, Shopping,
   DayBlock, CardCategory,
@@ -39,8 +39,10 @@ function PriceTag({ value, currency, suffix }: { value: number; currency: string
 
 function CornerIcon({ icon: Icon }: { icon: React.ElementType }) {
   return (
-    <div className="absolute end-4 top-4 z-10 grid size-9 place-items-center rounded-full border border-white/40 bg-white/25 backdrop-blur-xl">
-      <Icon className="size-4 text-white" />
+    // خلفية داكنة لا فاتحة: الأيقونة البيضاء فوق bg-white/25 كانت تذوب
+    // في الصور الفاتحة (رمال، ثلج، واجهات زجاجية).
+    <div className="absolute end-4 top-4 z-10 grid size-9 place-items-center rounded-full bg-neutral-950/35 ring-1 ring-white/30 backdrop-blur-xl">
+      <Icon className="size-4 text-white drop-shadow" />
     </div>
   );
 }
@@ -51,7 +53,7 @@ export const HotelCard = React.memo(function HotelCard({ item, index }: { item: 
   return (
     <GlassCard index={index} tilt className="flex flex-col">
       <div className="relative h-48">
-        <CardImage category="hotels" query={item.imageQuery || item.name} alt={item.name} seed={index} className="absolute inset-0" />
+        <CardImage category="hotels" query={item.imageQuery || item.name} alt={item.name} seed={index} url={item.imageUrl} className="absolute inset-0" />
         <CornerIcon icon={BadgeCheck} />
         <div className="absolute bottom-3 start-4 end-4 z-10">
           <div className="mb-1 flex items-center gap-1.5">
@@ -92,47 +94,52 @@ export const FlightCard = React.memo(function FlightCard({ item, index }: { item
   const stopsLabel = item.stops === 0 ? 'مباشرة' : item.stops === 1 ? 'توقف واحد' : `${item.stops} توقفات`;
 
   return (
-    <GlassCard index={index} className="p-5">
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="grid size-9 place-items-center rounded-full bg-primary/15">
-            <Plane className="size-4 -rotate-45 text-primary" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold">{item.airline}</p>
-            <p className="text-xs text-muted-foreground">
+    <GlassCard index={index} className="flex flex-col">
+      {/* شريط صورة قصير: بطاقة الطيران كانت الوحيدة بلا صورة في شبكة
+          البطاقات، فتبدو ناقصة بجوار جاراتها. الشريط منخفض حتى يبقى
+          مخطّط الرحلة أدناه هو بطل البطاقة. */}
+      <div className="relative h-24">
+        <CardImage category="flights" query={item.imageQuery || `${item.airline} aircraft`} alt={item.airline} seed={index} url={item.imageUrl} className="absolute inset-0" />
+        <div className="absolute bottom-3 start-4 end-4 z-10 flex items-end justify-between gap-2">
+          <div className="min-w-0">
+            <p className="line-clamp-1 text-sm font-semibold text-white">{item.airline}</p>
+            <p className="text-[11px] text-white/75">
               {item.cabin === 'economy' ? 'اقتصادية' : item.cabin === 'premium' ? 'مميزة' : 'رجال أعمال'}
             </p>
           </div>
+          <Badge variant="glass" className="shrink-0 border-white/30 text-white">{stopsLabel}</Badge>
         </div>
-        <Badge variant={item.stops === 0 ? 'default' : 'muted'}>{stopsLabel}</Badge>
       </div>
 
-      {/* خط الرحلة */}
-      <div className="flex items-center gap-3" dir="ltr">
-        <div className="text-center">
-          <p className="text-xl font-semibold tabular-nums">{item.departTime}</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">{item.from}</p>
-        </div>
+      <div className="flex flex-1 flex-col p-5">
+        {/* خط الرحلة */}
+        <div className="flex items-center gap-3" dir="ltr">
+          <div className="text-center">
+            <p className="text-xl font-semibold tabular-nums">{item.departTime}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">{item.from}</p>
+          </div>
 
-        <div className="relative flex-1 px-1">
-          <div className="h-px w-full bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-background px-2 text-[10px] text-muted-foreground">
-            {formatDuration(item.durationMinutes)}
+          <div className="relative flex-1 px-1">
+            <div className="h-px w-full bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-card px-2 text-[10px] text-muted-foreground">
+              {formatDuration(item.durationMinutes)}
+            </div>
+          </div>
+
+          <div className="text-center">
+            <p className="text-xl font-semibold tabular-nums">{item.arriveTime}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">{item.to}</p>
           </div>
         </div>
 
-        <div className="text-center">
-          <p className="text-xl font-semibold tabular-nums">{item.arriveTime}</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">{item.to}</p>
+        {item.priceNote && (
+          <p className="mt-4 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{item.priceNote}</p>
+        )}
+
+        <div className="mt-auto flex items-end justify-between gap-2 border-t border-border/50 pt-4">
+          <PriceTag value={item.price} currency={item.currency} suffix="/ شخص" />
+          <CardActions actions={[{ label: 'عرض التذاكر', href: item.bookingUrl || flightSearchUrl(item.from, item.to), primary: true }]} />
         </div>
-      </div>
-
-      <p className="mt-4 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{item.priceNote}</p>
-
-      <div className="mt-4 flex items-end justify-between gap-2 border-t border-border/50 pt-4">
-        <PriceTag value={item.price} currency={item.currency} suffix="/ شخص" />
-        <CardActions actions={[{ label: 'عرض التذاكر', href: item.bookingUrl, primary: true }]} />
       </div>
     </GlassCard>
   );
@@ -148,7 +155,7 @@ export const RestaurantCard = React.memo(function RestaurantCard({ item, index }
   return (
     <GlassCard index={index} className="flex flex-col overflow-hidden">
       <div className="relative h-36">
-        <CardImage category="restaurants" query={item.imageQuery || item.name} alt={item.name} seed={index} className="absolute inset-0" />
+        <CardImage category="restaurants" query={item.imageQuery || item.name} alt={item.name} seed={index} url={item.imageUrl} className="absolute inset-0" />
         <CornerIcon icon={Utensils} />
         <div className="absolute bottom-3 start-4 end-4 z-10 flex items-center gap-2">
           <Badge variant="glass" className="text-white">{FOOD_TYPE_AR[item.type]}</Badge>
@@ -182,7 +189,7 @@ export const ExperienceCard = React.memo(function ExperienceCard({ item, index }
   return (
     <GlassCard index={index} tilt className="flex flex-col">
       <div className="relative h-44">
-        <CardImage category="experiences" query={item.imageQuery || item.title} alt={item.title} seed={index} className="absolute inset-0" />
+        <CardImage category="experiences" query={item.imageQuery || item.title} alt={item.title} seed={index} url={item.imageUrl} className="absolute inset-0" />
         <CornerIcon icon={Ticket} />
         <div className="absolute bottom-3 start-4 end-4 z-10">
           <Badge variant="glass" className="mb-1.5 text-white">{EXP_CAT_AR[item.category]}</Badge>
@@ -217,7 +224,7 @@ export const LandmarkCard = React.memo(function LandmarkCard({ item, index }: { 
   return (
     <GlassCard index={index} className="flex flex-col">
       <div className="relative h-40">
-        <CardImage category="landmarks" query={item.imageQuery || item.name} alt={item.name} seed={index} className="absolute inset-0" />
+        <CardImage category="landmarks" query={item.imageQuery || item.name} alt={item.name} seed={index} url={item.imageUrl} className="absolute inset-0" />
         <CornerIcon icon={LandmarkIcon} />
         <div className="absolute bottom-3 start-4 end-4 z-10">
           <Badge variant="glass" className="mb-1.5 text-white">{LANDMARK_AR[item.type]}</Badge>
@@ -251,17 +258,21 @@ export const ShoppingCard = React.memo(function ShoppingCard({ item, index }: { 
   return (
     <GlassCard index={index} className="flex flex-col">
       <div className="relative h-36">
-        <CardImage category="shopping" query={item.imageQuery || item.name} alt={item.name} seed={index} className="absolute inset-0" />
+        <CardImage category="shopping" query={item.imageQuery || item.name} alt={item.name} seed={index} url={item.imageUrl} className="absolute inset-0" />
         <CornerIcon icon={ShoppingBag} />
+        {/* العنوان فوق الصورة كبقية البطاقات — التدرّج الأسود كان يغطي
+            صورة بلا أي نص فوقها، فيبدو ظلاً بلا سبب. */}
+        <div className="absolute bottom-3 start-4 end-4 z-10">
+          <Badge variant="glass" className="mb-1.5 text-white">{SHOP_AR[item.type]}</Badge>
+          <h3 className="line-clamp-1 text-lg font-semibold text-white">{item.name}</h3>
+        </div>
       </div>
 
       <div className="flex flex-1 flex-col gap-2 p-5">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="line-clamp-1 font-semibold">{item.name}</h3>
+          <p className="line-clamp-2 text-sm text-muted-foreground">{item.knownFor}</p>
           <span className="shrink-0 text-xs font-medium text-primary" dir="ltr">{priceLevelLabel(item.priceLevel)}</span>
         </div>
-        <Badge variant="muted" className="w-fit">{SHOP_AR[item.type]}</Badge>
-        <p className="line-clamp-2 text-sm text-muted-foreground">{item.knownFor}</p>
         <p className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"><MapPin className="size-3.5" />{item.area}</p>
         <CardActions className="mt-auto pt-2" actions={[{ label: 'الموقع على الخريطة', href: item.mapUrl || mapsUrl(item.name), icon: 'map' }]} />
       </div>
@@ -285,14 +296,14 @@ const REF_LABELS: Record<Exclude<DayBlock['refType'], 'free'>, string> = {
 
 /** صورة مصغّرة للمقطع — تسقط إلى بديل حتمي عند فشل التحميل. */
 const Thumb = React.memo(function Thumb(
-  { category, query, alt, seed = 0 }: { category: CardCategory; query: string; alt: string; seed?: number },
+  { category, query, alt, seed = 0, url }: { category: CardCategory; query: string; alt: string; seed?: number; url?: string | null },
 ) {
   const [failed, setFailed] = React.useState(false);
   const destination = React.useContext(TripDestinationContext);
   return (
     <div className="relative size-[68px] shrink-0 overflow-hidden rounded-2xl bg-muted ring-1 ring-black/5 dark:ring-white/10">
       <Image
-        src={failed ? getFallbackImage(query, 160, 160) : getCardImage(category, query, { w: 160, h: 160, seed, destination })}
+        src={failed ? getFallbackImage(query, 160, 160) : getCardImage(category, query, { w: 160, h: 160, seed, destination, url })}
         alt={alt}
         fill
         sizes="68px"
@@ -309,7 +320,7 @@ export const TimelineBlock = React.memo(function TimelineBlock({
 }: {
   time: string; period?: DayBlock['period']; title: string; description: string;
   transitNote?: string; cost: number; currency: string; isLast: boolean;
-  image?: { category: CardCategory; query: string; seed?: number } | null;
+  image?: { category: CardCategory; query: string; seed?: number; url?: string | null } | null;
   refType?: DayBlock['refType'];
 }) {
   const p = PERIODS[period] ?? PERIODS.morning;
@@ -334,7 +345,7 @@ export const TimelineBlock = React.memo(function TimelineBlock({
       {/* البطاقة */}
       <div className="glass glass-sheen relative flex-1 rounded-2xl p-3.5 transition-shadow duration-300 hover:shadow-card sm:p-4">
         <div className="flex gap-3.5">
-          {image && <Thumb category={image.category} query={image.query} seed={image.seed} alt={title} />}
+          {image && <Thumb category={image.category} query={image.query} seed={image.seed} url={image.url} alt={title} />}
 
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-2.5">

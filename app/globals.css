@@ -105,6 +105,20 @@
   }
   /* الأرقام والنصوص اللاتينية داخل واجهة عربية */
   .num { font-family: var(--font-latin), ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+
+  /* حقول التاريخ: المتصفح يرسم محتواها LTR فتلتصق ببداية الحقل اليسرى
+     بينما بقية الخانات تبدأ من اليمين. نُمدّد نص التاريخ ليملأ الحقل
+     ونحاذيه لليمين، وندفع أيقونة التقويم إلى الطرف الآخر. */
+  input[type='date']::-webkit-datetime-edit {
+    flex: 1 1 auto;
+    text-align: right;
+  }
+  input[type='date']::-webkit-calendar-picker-indicator {
+    margin-inline-start: auto;
+    opacity: 0.55;
+    cursor: pointer;
+  }
+  input[type='date']::-webkit-calendar-picker-indicator:hover { opacity: 0.9; }
 }
 
 @layer components {
